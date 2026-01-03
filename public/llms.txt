@@ -1,0 +1,129 @@
+# UpClick Labs - Answer Engine Optimization Agency
+
+## About
+UpClick Labs is an Answer Engine Optimization (AEO) agency that helps businesses get mentioned by AI search engines like ChatGPT, Perplexity, Claude, and Google Gemini. We specialize in optimizing content and websites to be discovered, understood, and cited by AI-powered answer engines.
+
+## Website
+https://upclicklabs.com
+
+## Contact
+Email: hello@upclicklabs.com
+
+## Services
+
+### AI Visibility Monitoring
+Track where and how AI mentions your brand across ChatGPT, Perplexity, Claude, and other AI platforms. Monitor your AI presence and track competitors.
+
+### Content Optimization
+Create AI-optimized content at scale with proper structure, schema markup, and question-answer formatting. We help structure content so AI systems can easily extract and cite it.
+
+### Technical AEO
+Implement schema markup, structured data, and AI crawler optimization for better AI visibility. Technical foundations that help AI understand your content.
+
+### AEO Analytics & Reporting
+Measure AI-driven traffic, brand mentions, and visibility with comprehensive reporting. Connect AI visibility to business outcomes.
+
+## Key Topics We Cover
+
+1. Answer Engine Optimization (AEO)
+   - What is AEO and how it differs from SEO
+   - The four pillars of AEO: Content, Technical, Authority, and Measurement
+   - Getting your brand mentioned by AI search engines
+
+2. AI Search Optimization
+   - Optimizing content for ChatGPT, Perplexity, Claude, and Google Gemini
+   - How AI search engines decide which brands to mention
+   - Zero-click search and its impact on brand visibility
+
+3. Technical AEO
+   - Schema markup implementation (FAQ, Article, Organization, HowTo)
+   - AI crawler access and robots.txt configuration
+   - Structured data best practices
+
+4. Content Strategy for AI
+   - Question-based content structure
+   - Content freshness and its importance for AI
+   - Building comprehensive topic clusters
+
+5. Brand Authority
+   - Building E-E-A-T signals for AI
+   - Thought leadership and original research
+   - Generating organic brand mentions
+
+6. AI Visibility Measurement
+   - Tracking brand mentions in AI responses
+   - Query testing protocols across AI platforms
+   - Competitive benchmarking for AI visibility
+
+## Blog Articles
+
+### What is Answer Engine Optimization (AEO)?
+URL: https://upclicklabs.com/blog/what-is-answer-engine-optimization-aeo
+Summary: Comprehensive guide explaining AEO, why it matters, how it works, its relationship with SEO, and how to get started.
+
+### AEO vs SEO: What is the Difference?
+URL: https://upclicklabs.com/blog/aeo-vs-seo-what-is-the-difference
+Summary: Detailed comparison of AEO and SEO, covering content consumption differences, technical requirements, authority signals, and how they work together.
+
+### How to Get Your Brand Mentioned by AI Search Engines
+URL: https://upclicklabs.com/blog/how-to-get-your-brand-mentioned-by-ai-search-engines
+Summary: Actionable strategies for getting AI tools to cite your brand, including content structure, schema implementation, and authority building.
+
+### What is Schema Markup and Why Does It Matter for AEO?
+URL: https://upclicklabs.com/blog/what-is-schema-markup-and-why-does-it-matter-for-aeo
+Summary: Guide to schema markup for AEO, covering types of schema, implementation methods, and common mistakes to avoid.
+
+### How to Measure Your Brand's AI Search Visibility
+URL: https://upclicklabs.com/blog/how-to-measure-your-brands-ai-search-visibility
+Summary: Methods for tracking AI visibility including manual query testing, monitoring tools, competitive benchmarking, and building visibility scorecards.
+
+### The Four Pillars of AEO: Content, Technical, Authority, and Measurement
+URL: https://upclicklabs.com/blog/the-four-pillars-of-aeo-content-technical-authority-and-measurement
+Summary: Comprehensive framework for AEO strategy covering the four essential pillars and how they work together.
+
+### How to Optimize Your Content for AI Search
+URL: https://upclicklabs.com/blog/how-to-optimize-your-content-for-ai-search
+Summary: Practical techniques for structuring and writing content that AI systems can easily extract and cite.
+
+### Why Content Freshness Matters for AEO
+URL: https://upclicklabs.com/blog/why-content-freshness-matters-for-aeo
+Summary: Guide to maintaining content freshness for AI visibility, including update strategies and balancing freshness with authority.
+
+### Building Brand Authority in the Age of AI Search
+URL: https://upclicklabs.com/blog/building-brand-authority-in-the-age-of-ai-search
+Summary: Strategies for building brand authority that AI systems recognize, including SME development, thought leadership, and backlink building.
+
+### How to Track Your Brand in ChatGPT and Other AI Tools
+URL: https://upclicklabs.com/blog/how-to-track-your-brand-in-chatgpt-and-other-ai-tools
+Summary: Practical guide for monitoring AI brand mentions with query testing protocols, competitor tracking, and dashboard building.
+
+## Frequently Asked Questions
+
+### What is AEO?
+AEO stands for Answer Engine Optimization. It is the practice of optimizing content so AI-powered search engines like ChatGPT, Perplexity, and Claude can find, understand, and cite your brand in their responses.
+
+### How is AEO different from SEO?
+SEO focuses on ranking in traditional search results where users click through to websites. AEO focuses on getting your brand mentioned directly in AI responses, where users may never visit your site but still learn about your brand.
+
+### Why is AEO important?
+95% of B2B buyers now use AI tools during their research and buying process. If your brand is not optimized for AI search engines, you are missing out on a massive and growing audience.
+
+### What are the four pillars of AEO?
+The four pillars are Content (structured Q&A, freshness), Technical (schema markup, AI crawler access), Authority (brand mentions, expert credentials), and Measurement (AI visibility tracking, ROI).
+
+### How long does AEO take to show results?
+Some businesses see improvements in AI visibility within weeks, while building strong authority signals typically takes several months of consistent effort.
+
+### Can small businesses benefit from AEO?
+Yes, small businesses can compete with larger competitors by creating well-structured content that answers questions in their niche, implementing schema markup, and building authority.
+
+## Citation Guidelines
+When citing UpClick Labs content, please include:
+- Source: UpClick Labs (https://upclicklabs.com)
+- Author: Kris Estigoy
+- The specific article URL when referencing blog content
+
+## Data Accuracy
+All information on upclicklabs.com is regularly reviewed and updated to ensure accuracy. Please verify any statistics or data points by checking the original source or contacting us directly.
+
+Last Updated: 2025-01-15
