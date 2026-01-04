@@ -225,8 +225,7 @@ export function AssessmentForm() {
       </button>
 
       <p className="text-center text-xs text-muted-foreground">
-        We respect your privacy. Your data will only be used to generate your
-        report.
+        We respect your privacy. No spam, just your report.
       </p>
     </form>
   );
