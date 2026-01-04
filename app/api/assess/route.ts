@@ -40,20 +40,33 @@ async function sendToGoogleSheets(data: {
     return;
   }
 
+  const payload = {
+    ...data,
+    timestamp: new Date().toISOString(),
+  };
+
+  console.log("Sending to Google Sheets:", webhookUrl);
+  console.log("Payload:", JSON.stringify(payload));
+
   try {
+    // Google Apps Script redirects, so we need to follow redirects
     const response = await fetch(webhookUrl, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ...data,
-        timestamp: new Date().toISOString(),
-      }),
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+      redirect: "follow",
     });
 
-    if (response.ok) {
+    console.log("Google Sheets response status:", response.status);
+    const responseText = await response.text();
+    console.log("Google Sheets response:", responseText);
+
+    if (response.ok || response.status === 302) {
       console.log("Lead sent to Google Sheets successfully");
     } else {
-      console.error("Failed to send lead to Google Sheets:", response.statusText);
+      console.error("Failed to send lead to Google Sheets:", response.status, responseText);
     }
   } catch (error) {
     console.error("Error sending to Google Sheets:", error);
