@@ -67,9 +67,9 @@ export function AssessmentTool() {
             {/* AI Disclaimer */}
             <div className="mt-6 p-4 border border-border/30 bg-secondary/20 rounded">
               <p className="text-xs text-muted-foreground leading-relaxed">
-                <span className="font-medium text-foreground/70">AI-Powered Assessment:</span>{" "}
-                This assessment is powered by AI, so keep in mind that even smart models can sometimes get things wrong.
-                Take these results as a helpful starting point and double-check details before acting on the final output.
+                <span className="font-medium text-foreground/70">A note on accuracy:</span>{" "}
+                Our analysis uses automated scanning to evaluate your site. While we strive for precision,
+                no tool is perfect — use this report as a guide to identify opportunities, not as a definitive audit.
               </p>
             </div>
           </motion.div>
