@@ -63,6 +63,15 @@ export function AssessmentTool() {
                 <span>✓ Report in 24hrs</span>
               </div>
             </div>
+
+            {/* AI Disclaimer */}
+            <div className="mt-6 p-4 border border-border/30 bg-secondary/20 rounded">
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                <span className="font-medium text-foreground/70">AI-Powered Assessment:</span>{" "}
+                This assessment is powered by AI, so keep in mind that even smart models can sometimes get things wrong.
+                Take these results as a helpful starting point and double-check details before acting on the final output.
+              </p>
+            </div>
           </motion.div>
 
           {/* Features Section */}

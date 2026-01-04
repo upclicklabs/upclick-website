@@ -3,6 +3,7 @@ export interface SimpleEmailData {
   reportUrl: string;
   score: number;
   maturityLevel: string;
+  name?: string;
 }
 
 function getScoreColor(score: number): string {
@@ -13,7 +14,8 @@ function getScoreColor(score: number): string {
 }
 
 export function generateSimpleReportEmail(data: SimpleEmailData): string {
-  const { hostname, reportUrl, score, maturityLevel } = data;
+  const { hostname, reportUrl, score, maturityLevel, name } = data;
+  const greeting = name ? `Hi ${name.split(' ')[0]},` : 'Hi there,';
 
   return `
 <!DOCTYPE html>
@@ -41,6 +43,9 @@ export function generateSimpleReportEmail(data: SimpleEmailData): string {
           <!-- Main Content -->
           <tr>
             <td style="padding: 0 40px 40px;">
+              <p style="margin: 0 0 20px; color: #a3a3a3; font-size: 16px;">
+                ${greeting}
+              </p>
               <h1 style="margin: 0 0 8px; color: #fff; font-size: 28px; font-weight: 400; line-height: 1.3;">
                 Your AEO readiness report for
               </h1>

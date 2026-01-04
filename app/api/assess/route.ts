@@ -25,15 +25,50 @@ function getBaseUrl(request: NextRequest): string {
   return `${url.protocol}//${url.host}`;
 }
 
+// Send lead data to Google Sheets via webhook
+async function sendToGoogleSheets(data: {
+  name: string;
+  email: string;
+  url: string;
+  score: number;
+  maturityLevel: string;
+  reportUrl: string;
+}) {
+  const webhookUrl = process.env.GOOGLE_SHEETS_WEBHOOK_URL;
+  if (!webhookUrl) {
+    console.warn("GOOGLE_SHEETS_WEBHOOK_URL not configured - lead not captured");
+    return;
+  }
+
+  try {
+    const response = await fetch(webhookUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ...data,
+        timestamp: new Date().toISOString(),
+      }),
+    });
+
+    if (response.ok) {
+      console.log("Lead sent to Google Sheets successfully");
+    } else {
+      console.error("Failed to send lead to Google Sheets:", response.statusText);
+    }
+  } catch (error) {
+    console.error("Error sending to Google Sheets:", error);
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { url, email } = body;
+    const { name, url, email } = body;
 
     // Validate inputs
-    if (!url || !email) {
+    if (!name || !url || !email) {
       return NextResponse.json(
-        { error: "URL and email are required" },
+        { error: "Name, URL, and email are required" },
         { status: 400 }
       );
     }
@@ -47,7 +82,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log("Assessment requested:", { url, email });
+    console.log("Assessment requested:", { name, url, email });
 
     // Analyze the website
     let report;
@@ -93,12 +128,23 @@ export async function POST(request: NextRequest) {
       console.log("Fallback to compressed URL:", reportUrl.substring(0, 100) + "...");
     }
 
+    // Send lead to Google Sheets (fire and forget - don't block on this)
+    sendToGoogleSheets({
+      name,
+      email,
+      url,
+      score: report.scores.overall,
+      maturityLevel: report.maturityLevel,
+      reportUrl,
+    }).catch(err => console.error("Google Sheets error:", err));
+
     // Generate simple email with link
     const emailHtml = generateSimpleReportEmail({
       hostname,
       reportUrl,
       score: report.scores.overall,
       maturityLevel: report.maturityLevel,
+      name,
     });
 
     // Send email via Resend

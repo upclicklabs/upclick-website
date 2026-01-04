@@ -8,6 +8,10 @@ import { Loader2, CheckCircle, Mail, Calendar, ExternalLink } from "lucide-react
 import { cn } from "@/lib/utils";
 
 const assessmentSchema = z.object({
+  name: z
+    .string()
+    .min(1, "Name is required")
+    .min(2, "Name must be at least 2 characters"),
   url: z
     .string()
     .min(1, "Website URL is required")
@@ -137,6 +141,28 @@ export function AssessmentForm() {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+      <div>
+        <label
+          htmlFor="name"
+          className="block font-mono text-xs tracking-widest text-muted-foreground uppercase mb-3"
+        >
+          Your Name
+        </label>
+        <input
+          {...register("name")}
+          type="text"
+          id="name"
+          placeholder="John Smith"
+          className={cn(
+            "w-full border border-border/50 bg-secondary/30 px-4 py-4 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary transition-colors",
+            errors.name && "border-destructive"
+          )}
+        />
+        {errors.name && (
+          <p className="mt-2 text-xs text-destructive">{errors.name.message}</p>
+        )}
+      </div>
+
       <div>
         <label
           htmlFor="url"
