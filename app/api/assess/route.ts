@@ -34,9 +34,9 @@ async function sendToGoogleSheets(data: {
   maturityLevel: string;
   reportUrl: string;
 }) {
-  const webhookUrl = process.env.GOOGLE_SHEETS_WEBHOOK_URL;
+  const webhookUrl = process.env.GOOGLESHEETS_WEBHOOK_URL;
   if (!webhookUrl) {
-    console.warn("GOOGLE_SHEETS_WEBHOOK_URL not configured - lead not captured");
+    console.warn("GOOGLESHEETS_WEBHOOK_URL not configured - lead not captured");
     return;
   }
 
