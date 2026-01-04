@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import { analyzeWebsite } from "@/lib/aeo-analyzer";
 import { generateSimpleReportEmail } from "@/lib/email-templates-simple";
-import { generateReportUrl } from "@/lib/report-url";
 
 // Lazy initialize Resend to avoid build-time errors
 function getResendClient() {
@@ -70,12 +69,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate the report URL (no database needed - data encoded in URL)
+    // Store report and get short URL
     const baseUrl = getBaseUrl(request);
-    const reportUrl = generateReportUrl(report, baseUrl);
     const hostname = new URL(report.url).hostname.replace("www.", "");
 
-    console.log("Report URL generated:", reportUrl.substring(0, 100) + "...");
+    // Store the report via internal API call
+    const storeResponse = await fetch(`${baseUrl}/api/reports`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(report),
+    });
+
+    let reportUrl: string;
+
+    if (storeResponse.ok) {
+      const storeData = await storeResponse.json();
+      reportUrl = `${baseUrl}${storeData.reportUrl}`;
+      console.log("Short report URL generated:", reportUrl);
+    } else {
+      // Fallback to old compressed URL method if storage fails
+      const { generateReportUrl } = await import("@/lib/report-url");
+      reportUrl = generateReportUrl(report, baseUrl);
+      console.log("Fallback to compressed URL:", reportUrl.substring(0, 100) + "...");
+    }
 
     // Generate simple email with link
     const emailHtml = generateSimpleReportEmail({

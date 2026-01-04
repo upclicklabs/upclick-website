@@ -17,6 +17,14 @@ export interface AEORecommendation {
   title: string;
   description: string;
   why?: string;
+  priority?: number; // 1 = highest priority
+}
+
+export interface PillarSummary {
+  findings: string;
+  coveragePercent: number;
+  checksPass: number;
+  checksTotal: number;
 }
 
 export interface AEOReport {
@@ -31,6 +39,13 @@ export interface AEOReport {
     Authority: AEORecommendation[];
     Measurement: AEORecommendation[];
   };
+  pillarSummaries?: {
+    Content: PillarSummary;
+    Technical: PillarSummary;
+    Authority: PillarSummary;
+    Measurement: PillarSummary;
+  };
+  topPriorities?: AEORecommendation[];
   analyzedAt: string;
 }
 

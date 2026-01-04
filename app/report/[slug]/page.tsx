@@ -4,7 +4,7 @@ import { useSearchParams } from "next/navigation";
 import { decodeReport } from "@/lib/report-url";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { AEOReport } from "@/lib/email-templates";
+import { AEOReport, PillarSummary, AEORecommendation } from "@/lib/email-templates";
 
 function getScoreColor(score: number): string {
   if (score >= 4) return "#22c55e";
@@ -38,6 +38,113 @@ function getPillarInfo(pillar: string): { color: string; tagline: string } {
   }
 }
 
+// Generate pillar summaries dynamically from scores
+function generatePillarSummaries(report: AEOReport): AEOReport["pillarSummaries"] {
+  const hostname = new URL(report.url).hostname.replace("www.", "");
+  const { content, technical, authority, measurement } = report.scores;
+  const strengths = report.strengths || [];
+
+  const getFindings = (pillar: string, score: number): string => {
+    const pillarStrengths = strengths.filter(s => s.category === pillar).length;
+
+    if (pillar === "Content") {
+      if (score >= 4) return `${hostname} demonstrates excellent content optimization for AI search. Your content is well-structured, comprehensive, and formatted in ways that AI systems can easily understand and cite.`;
+      if (score >= 3) return `${hostname} shows moderate content maturity for AI search. While some AEO best practices are in place, there are opportunities to improve question coverage, content depth, and semantic organization.`;
+      if (score >= 2) return `${hostname} has basic content foundations but needs significant improvement for AI visibility. Content structure is limited, and key elements like FAQ sections are missing or incomplete.`;
+      return `${hostname} requires substantial content improvements to be visible to AI search engines. The site lacks key AEO elements like structured FAQs and clear heading hierarchies.`;
+    }
+    if (pillar === "Technical") {
+      if (score >= 4) return `${hostname} has excellent technical AEO implementation. Schema markup is comprehensive, page structure is optimized for AI crawlers.`;
+      if (score >= 3) return `${hostname} demonstrates moderate technical maturity with some schema markup implementation. Expanding schema coverage would significantly boost AI visibility.`;
+      if (score >= 2) return `${hostname} has limited technical AEO implementation. Basic meta tags may be present, but schema markup is minimal or missing.`;
+      return `${hostname} lacks essential technical AEO elements. Without proper schema markup, AI systems struggle to parse your content accurately.`;
+    }
+    if (pillar === "Authority") {
+      if (score >= 4) return `${hostname} demonstrates strong authority signals that AI systems recognize. Visible credentials and citations position your brand as a trusted source.`;
+      if (score >= 3) return `${hostname} has moderate authority signals. Some trust indicators are present, but expanding digital PR efforts and showcasing credentials would strengthen AI trust.`;
+      if (score >= 2) return `${hostname} has limited authority signals visible to AI systems. Key trust indicators like author attribution and testimonials are missing or minimal.`;
+      return `${hostname} lacks authority signals that AI systems use to determine trustworthiness. Without visible credentials, AI systems have no basis to recommend your content.`;
+    }
+    // Measurement
+    if (score >= 4) return `${hostname} has excellent measurement infrastructure in place. Analytics tracking is comprehensive for monitoring AI-driven traffic.`;
+    if (score >= 3) return `${hostname} has active web analytics implementation. Basic tracking is in place, but LLM-specific traffic tracking would provide deeper insights.`;
+    if (score >= 2) return `${hostname} has minimal measurement capabilities. Limited analytics make it difficult to track AI-driven traffic.`;
+    return `${hostname} lacks measurement infrastructure for tracking AI visibility. Without analytics, you cannot measure AI-driven traffic or monitor brand mentions.`;
+  };
+
+  return {
+    Content: {
+      findings: getFindings("Content", content),
+      coveragePercent: Math.round((content / 5) * 100),
+      checksPass: strengths.filter(s => s.category === "Content").length,
+      checksTotal: 10,
+    },
+    Technical: {
+      findings: getFindings("Technical", technical),
+      coveragePercent: Math.round((technical / 5) * 100),
+      checksPass: strengths.filter(s => s.category === "Technical").length,
+      checksTotal: 12,
+    },
+    Authority: {
+      findings: getFindings("Authority", authority),
+      coveragePercent: Math.round((authority / 5) * 100),
+      checksPass: strengths.filter(s => s.category === "Authority").length,
+      checksTotal: 12,
+    },
+    Measurement: {
+      findings: getFindings("Measurement", measurement),
+      coveragePercent: Math.round((measurement / 5) * 100),
+      checksPass: strengths.filter(s => s.category === "Measurement").length,
+      checksTotal: 8,
+    },
+  };
+}
+
+// Generate top priorities dynamically from recommendations
+function generateTopPriorities(report: AEOReport): AEORecommendation[] {
+  const categoryWeight: Record<string, number> = {
+    Content: 1.3,
+    Technical: 1.2,
+    Authority: 1.1,
+    Measurement: 1.0,
+  };
+
+  const highPriorityTitles = [
+    "Add an FAQ Section",
+    "Implement Schema Markup",
+    "Add Organization Schema",
+    "Add Meta Descriptions",
+    "Improve Heading Hierarchy",
+    "Add Author Attribution",
+    "Implement Analytics",
+  ];
+
+  const allRecs: Array<AEORecommendation & { priorityScore: number }> = [];
+
+  for (const [category, recs] of Object.entries(report.recommendationsByPillar)) {
+    for (const rec of recs) {
+      const weight = categoryWeight[category] || 1;
+      const isHighPriority = highPriorityTitles.some(t =>
+        rec.title.toLowerCase().includes(t.toLowerCase())
+      );
+      allRecs.push({
+        ...rec,
+        priorityScore: weight * (isHighPriority ? 2 : 1),
+      });
+    }
+  }
+
+  allRecs.sort((a, b) => b.priorityScore - a.priorityScore);
+
+  return allRecs.slice(0, 3).map((rec, index) => ({
+    category: rec.category,
+    title: rec.title,
+    description: rec.description,
+    why: rec.why,
+    priority: index + 1,
+  }));
+}
+
 function CopyButton() {
   const [copied, setCopied] = useState(false);
 
@@ -64,18 +171,59 @@ export default function ReportPage() {
   const [error, setError] = useState(false);
 
   useEffect(() => {
-    const encoded = searchParams.get("d");
-    if (encoded) {
-      const decoded = decodeReport(encoded);
-      if (decoded) {
-        setReport(decoded);
+    async function loadReport() {
+      // Check for short ID first (new URL format)
+      const shortId = searchParams.get("id");
+      if (shortId) {
+        try {
+          const response = await fetch(`/api/reports?id=${shortId}`);
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.report) {
+              const reportData = data.report;
+              // Generate pillarSummaries and topPriorities if not present
+              if (!reportData.pillarSummaries) {
+                reportData.pillarSummaries = generatePillarSummaries(reportData);
+              }
+              if (!reportData.topPriorities) {
+                reportData.topPriorities = generateTopPriorities(reportData);
+              }
+              setReport(reportData);
+              setLoading(false);
+              return;
+            }
+          }
+        } catch (err) {
+          console.error("Failed to fetch report:", err);
+        }
+        setError(true);
+        setLoading(false);
+        return;
+      }
+
+      // Fall back to encoded data in URL (old format)
+      const encoded = searchParams.get("d");
+      if (encoded) {
+        const decoded = decodeReport(encoded);
+        if (decoded) {
+          // Generate pillarSummaries and topPriorities if not present
+          if (!decoded.pillarSummaries) {
+            decoded.pillarSummaries = generatePillarSummaries(decoded);
+          }
+          if (!decoded.topPriorities) {
+            decoded.topPriorities = generateTopPriorities(decoded);
+          }
+          setReport(decoded);
+        } else {
+          setError(true);
+        }
       } else {
         setError(true);
       }
-    } else {
-      setError(true);
+      setLoading(false);
     }
-    setLoading(false);
+
+    loadReport();
   }, [searchParams]);
 
   if (loading) {
@@ -183,13 +331,14 @@ export default function ReportPage() {
         </div>
       </section>
 
-      {/* Score Breakdown Pills */}
+      {/* Score Breakdown Pills with Coverage */}
       <section className="border-y border-neutral-800 bg-neutral-950/50">
         <div className="container mx-auto px-6 py-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8">
             {pillars.map((pillar) => {
               const info = getPillarInfo(pillar);
               const score = report.scores[pillar.toLowerCase() as keyof typeof report.scores];
+              const summary = report.pillarSummaries?.[pillar];
               return (
                 <div key={pillar} className="text-center">
                   <div className="flex items-center justify-center gap-2 mb-2">
@@ -206,12 +355,77 @@ export default function ReportPage() {
                     {(score as number).toFixed(1)}
                   </span>
                   <span className="text-neutral-600 text-sm">/5</span>
+                  {summary && (
+                    <div className="mt-2">
+                      <span className="text-xs text-neutral-500">{summary.coveragePercent}% coverage</span>
+                    </div>
+                  )}
                 </div>
               );
             })}
           </div>
         </div>
       </section>
+
+      {/* Top 3 Priorities */}
+      {report.topPriorities && report.topPriorities.length > 0 && (
+        <section className="container mx-auto px-6 py-10">
+          <div className="max-w-4xl mx-auto">
+            <div className="bg-gradient-to-br from-[#d4a000]/10 to-transparent border border-[#d4a000]/30 rounded-xl p-6 md:p-8">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 rounded-full bg-[#d4a000]/20 flex items-center justify-center">
+                  <span className="text-[#d4a000] text-lg">🎯</span>
+                </div>
+                <div>
+                  <h2 className="text-xl font-serif text-white">Top 3 Priorities</h2>
+                  <p className="text-sm text-neutral-400">Focus on these first for maximum impact</p>
+                </div>
+              </div>
+              <div className="space-y-4">
+                {report.topPriorities.map((priority, index) => {
+                  const pillarInfo = getPillarInfo(priority.category);
+                  return (
+                    <div
+                      key={index}
+                      className="flex gap-4 p-4 bg-neutral-900/50 rounded-lg border border-neutral-800"
+                    >
+                      <div
+                        className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold"
+                        style={{
+                          backgroundColor: `${pillarInfo.color}20`,
+                          color: pillarInfo.color,
+                        }}
+                      >
+                        {index + 1}
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-white font-medium">{priority.title}</span>
+                          <span
+                            className="text-xs px-2 py-0.5 rounded-full"
+                            style={{
+                              backgroundColor: `${pillarInfo.color}20`,
+                              color: pillarInfo.color,
+                            }}
+                          >
+                            {priority.category}
+                          </span>
+                        </div>
+                        <p className="text-sm text-neutral-300">{priority.description}</p>
+                        {priority.why && (
+                          <p className="text-xs text-neutral-500 mt-2 italic">
+                            Why: {priority.why}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* What You're Doing Right - Organized by Pillar */}
       {report.strengths && report.strengths.length > 0 && (() => {
@@ -344,6 +558,7 @@ export default function ReportPage() {
               const info = getPillarInfo(pillar);
               const score = report.scores[pillar.toLowerCase() as keyof typeof report.scores];
               const recommendations = report.recommendationsByPillar[pillar] || [];
+              const summary = report.pillarSummaries?.[pillar];
 
               if (recommendations.length === 0) return null;
 
@@ -371,8 +586,19 @@ export default function ReportPage() {
                         {(score as number).toFixed(1)}
                       </span>
                       <span className="text-neutral-600">/5</span>
+                      {summary && (
+                        <p className="text-xs text-neutral-500 mt-1">{summary.coveragePercent}% coverage</p>
+                      )}
                     </div>
                   </div>
+
+                  {/* Assessment Findings */}
+                  {summary && (
+                    <div className="mb-6 p-4 bg-neutral-900/50 rounded-lg border border-neutral-800">
+                      <p className="text-xs text-neutral-500 uppercase tracking-wider mb-2">Assessment Findings</p>
+                      <p className="text-sm text-neutral-200 leading-relaxed">{summary.findings}</p>
+                    </div>
+                  )}
 
                   {/* Recommendations Table */}
                   <div className="overflow-x-auto">

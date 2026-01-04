@@ -144,6 +144,106 @@ async function fetchWebsite(url: string): Promise<AnalysisResult> {
   }
 }
 
+// Extract internal links from HTML for multi-page crawling
+function extractInternalLinks(html: string, baseUrl: string): string[] {
+  const baseHostname = new URL(baseUrl).hostname;
+  const links: Set<string> = new Set();
+
+  // Priority pages to look for (AEO-relevant)
+  const priorityPaths = [
+    "/about", "/about-us", "/company",
+    "/blog", "/articles", "/news", "/resources",
+    "/faq", "/faqs", "/help", "/support",
+    "/contact", "/contact-us",
+    "/services", "/solutions", "/products",
+    "/team", "/leadership", "/our-team",
+    "/case-studies", "/customers", "/testimonials",
+    "/pricing",
+  ];
+
+  // Extract all href links
+  const hrefRegex = /href=["']([^"']+)["']/gi;
+  let match;
+  while ((match = hrefRegex.exec(html)) !== null) {
+    try {
+      const href = match[1];
+      // Skip anchors, javascript, mailto, tel
+      if (href.startsWith("#") || href.startsWith("javascript:") ||
+          href.startsWith("mailto:") || href.startsWith("tel:")) {
+        continue;
+      }
+
+      // Convert to absolute URL
+      const absoluteUrl = new URL(href, baseUrl);
+
+      // Only include internal links
+      if (absoluteUrl.hostname === baseHostname) {
+        const path = absoluteUrl.pathname.toLowerCase();
+
+        // Check if it's a priority page
+        if (priorityPaths.some(p => path.includes(p))) {
+          links.add(absoluteUrl.origin + absoluteUrl.pathname);
+        }
+      }
+    } catch {
+      // Invalid URL, skip
+    }
+  }
+
+  // Sort by priority (about/faq/blog first)
+  const sortedLinks = Array.from(links).sort((a, b) => {
+    const aPath = new URL(a).pathname.toLowerCase();
+    const bPath = new URL(b).pathname.toLowerCase();
+    const getPriority = (path: string) => {
+      if (path.includes("faq")) return 0;
+      if (path.includes("about")) return 1;
+      if (path.includes("blog")) return 2;
+      if (path.includes("service")) return 3;
+      return 10;
+    };
+    return getPriority(aPath) - getPriority(bPath);
+  });
+
+  // Return top 5 links
+  return sortedLinks.slice(0, 5);
+}
+
+// Fetch multiple pages in parallel
+async function fetchMultiplePages(urls: string[]): Promise<Map<string, string>> {
+  const results = new Map<string, string>();
+
+  const fetchPromises = urls.map(async (url) => {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout per page
+
+      const response = await fetch(url, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (compatible; UpClickLabs-AEO-Analyzer/1.0; +https://upclicklabs.com)",
+          "Accept": "text/html,application/xhtml+xml",
+          "Accept-Language": "en-US,en;q=0.5",
+        },
+        redirect: "follow",
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (response.ok) {
+        const html = await response.text();
+        results.set(url, html);
+        console.log(`Crawled additional page: ${url} (${html.length} bytes)`);
+      }
+    } catch (error) {
+      console.log(`Failed to crawl ${url}: ${error}`);
+      // Silently ignore failed pages
+    }
+  });
+
+  await Promise.all(fetchPromises);
+  return results;
+}
+
 function analyzeContent(html: string): ContentAnalysis {
   const strengths: AEOStrength[] = [];
   const recommendations: AEORecommendation[] = [];
@@ -1301,14 +1401,35 @@ export async function analyzeWebsite(url: string): Promise<AEOReport> {
     url = "https://" + url;
   }
 
-  // Fetch the website
-  const { html, headers } = await fetchWebsite(url);
+  // Fetch the homepage
+  const { html: homepageHtml, headers } = await fetchWebsite(url);
+  console.log(`Homepage fetched. Looking for additional pages to crawl...`);
 
-  // Run all analyses
-  const contentAnalysis = analyzeContent(html);
-  const technicalAnalysis = analyzeTechnical(html, url, headers);
-  const authorityAnalysis = analyzeAuthority(html);
-  const measurementAnalysis = analyzeMeasurement(html);
+  // Extract internal links to priority pages (FAQ, about, blog, etc.)
+  const additionalLinks = extractInternalLinks(homepageHtml, url);
+  console.log(`Found ${additionalLinks.length} priority pages to analyze:`, additionalLinks);
+
+  // Fetch additional pages in parallel (with timeout protection)
+  let allPagesHtml = homepageHtml;
+  let pagesCrawled = 1;
+
+  if (additionalLinks.length > 0) {
+    const additionalPages = await fetchMultiplePages(additionalLinks);
+
+    // Combine HTML from all pages for comprehensive analysis
+    for (const [pageUrl, pageHtml] of additionalPages) {
+      // Add page markers for context
+      allPagesHtml += `\n<!-- PAGE: ${pageUrl} -->\n${pageHtml}`;
+      pagesCrawled++;
+    }
+    console.log(`Analyzed ${pagesCrawled} pages total (homepage + ${additionalPages.size} additional)`);
+  }
+
+  // Run all analyses on combined content
+  const contentAnalysis = analyzeContent(allPagesHtml);
+  const technicalAnalysis = analyzeTechnical(allPagesHtml, url, headers);
+  const authorityAnalysis = analyzeAuthority(allPagesHtml);
+  const measurementAnalysis = analyzeMeasurement(allPagesHtml);
 
   // Combine all strengths for verification
   const allStrengths = [
@@ -1318,9 +1439,9 @@ export async function analyzeWebsite(url: string): Promise<AEOReport> {
     ...measurementAnalysis.strengths,
   ];
 
-  // Run verification to filter out false positives
+  // Run verification to filter out false positives (using combined HTML)
   const { verifiedStrengths, removedStrengths } = verifyAssessment(
-    html,
+    allPagesHtml,
     allStrengths,
     contentAnalysis.details,
     technicalAnalysis.details,
@@ -1418,6 +1539,20 @@ export async function analyzeWebsite(url: string): Promise<AEOReport> {
 
   const maturity = getMaturityLevel(overallScore);
 
+  // Generate pillar summaries with coverage percentages
+  const pillarSummaries = generatePillarSummaries(
+    adjustedContentScore,
+    adjustedTechnicalScore,
+    adjustedAuthorityScore,
+    adjustedMeasurementScore,
+    verifiedStrengths,
+    recommendationsByPillar,
+    url
+  );
+
+  // Generate top 3 priorities across all pillars
+  const topPriorities = generateTopPriorities(recommendationsByPillar);
+
   return {
     url,
     scores: {
@@ -1431,6 +1566,8 @@ export async function analyzeWebsite(url: string): Promise<AEOReport> {
     maturityDescription: maturity.description,
     strengths: verifiedStrengths,
     recommendationsByPillar,
+    pillarSummaries,
+    topPriorities,
     analyzedAt: new Date().toLocaleDateString("en-US", {
       year: "numeric",
       month: "long",
@@ -1439,4 +1576,177 @@ export async function analyzeWebsite(url: string): Promise<AEOReport> {
       minute: "2-digit",
     }),
   };
+}
+
+// Generate comprehensive pillar summaries
+function generatePillarSummaries(
+  contentScore: number,
+  technicalScore: number,
+  authorityScore: number,
+  measurementScore: number,
+  strengths: AEOStrength[],
+  recommendations: {
+    Content: AEORecommendation[];
+    Technical: AEORecommendation[];
+    Authority: AEORecommendation[];
+    Measurement: AEORecommendation[];
+  },
+  url: string
+) {
+  const hostname = new URL(url).hostname.replace("www.", "");
+
+  // Content: 10 possible checks
+  const contentChecksTotal = 10;
+  const contentStrengths = strengths.filter(s => s.category === "Content").length;
+  const contentRecsCount = recommendations.Content.length;
+  const contentChecksPass = contentStrengths;
+  const contentCoverage = Math.round((contentScore / 5) * 100);
+
+  let contentFindings = "";
+  if (contentScore >= 4) {
+    contentFindings = `${hostname} demonstrates excellent content optimization for AI search. Your content is well-structured, comprehensive, and formatted in ways that AI systems can easily understand and cite. Strong FAQ coverage and clear heading hierarchy make your content highly accessible to answer engines.`;
+  } else if (contentScore >= 3) {
+    contentFindings = `${hostname} shows moderate content maturity for AI search. While some AEO best practices are in place (like structured headings or FAQ content), there are opportunities to improve question coverage, content depth, and semantic organization to increase AI citation likelihood.`;
+  } else if (contentScore >= 2) {
+    contentFindings = `${hostname} has basic content foundations but needs significant improvement for AI visibility. Content structure is limited, and key elements like FAQ sections, comprehensive topic coverage, and clear information hierarchy are missing or incomplete.`;
+  } else {
+    contentFindings = `${hostname} requires substantial content improvements to be visible to AI search engines. The site lacks key AEO elements like structured FAQs, clear heading hierarchies, and comprehensive topic coverage that AI systems rely on when generating answers.`;
+  }
+
+  // Technical: 12 possible checks
+  const technicalChecksTotal = 12;
+  const technicalStrengths = strengths.filter(s => s.category === "Technical").length;
+  const technicalChecksPass = technicalStrengths;
+  const technicalCoverage = Math.round((technicalScore / 5) * 100);
+
+  let technicalFindings = "";
+  if (technicalScore >= 4) {
+    technicalFindings = `${hostname} has excellent technical AEO implementation. Schema markup is comprehensive, page structure is optimized for AI crawlers, and technical foundations enable AI systems to accurately parse and cite your content.`;
+  } else if (technicalScore >= 3) {
+    technicalFindings = `${hostname} demonstrates moderate technical maturity with some schema markup implementation and basic performance optimization. Expanding schema coverage and improving structured data would significantly boost AI visibility.`;
+  } else if (technicalScore >= 2) {
+    technicalFindings = `${hostname} has limited technical AEO implementation. Basic meta tags may be present, but schema markup is minimal or missing, reducing AI systems' ability to understand and properly attribute your content.`;
+  } else {
+    technicalFindings = `${hostname} lacks essential technical AEO elements. Without proper schema markup, structured data, and technical optimization, AI systems struggle to parse your content accurately and are unlikely to cite your pages.`;
+  }
+
+  // Authority: 12 possible checks
+  const authorityChecksTotal = 12;
+  const authorityStrengths = strengths.filter(s => s.category === "Authority").length;
+  const authorityChecksPass = authorityStrengths;
+  const authorityCoverage = Math.round((authorityScore / 5) * 100);
+
+  let authorityFindings = "";
+  if (authorityScore >= 4) {
+    authorityFindings = `${hostname} demonstrates strong authority signals that AI systems recognize. Visible credentials, citations from other sources, and clear expertise indicators position your brand as a trusted source AI actively recommends.`;
+  } else if (authorityScore >= 3) {
+    authorityFindings = `${hostname} has moderate authority signals. Some trust indicators are present (like about pages or contact information), but expanding digital PR efforts, building citations, and showcasing credentials would strengthen AI trust.`;
+  } else if (authorityScore >= 2) {
+    authorityFindings = `${hostname} has limited authority signals visible to AI systems. Key trust indicators like author attribution, testimonials, and external citations are missing or minimal, reducing the likelihood of AI recommendation.`;
+  } else {
+    authorityFindings = `${hostname} lacks authority signals that AI systems use to determine trustworthiness. Without visible credentials, citations, and expertise indicators, AI systems have no basis to recommend your content over competitors.`;
+  }
+
+  // Measurement: 8 possible checks
+  const measurementChecksTotal = 8;
+  const measurementStrengths = strengths.filter(s => s.category === "Measurement").length;
+  const measurementChecksPass = measurementStrengths;
+  const measurementCoverage = Math.round((measurementScore / 5) * 100);
+
+  let measurementFindings = "";
+  if (measurementScore >= 4) {
+    measurementFindings = `${hostname} has excellent measurement infrastructure in place. Analytics tracking is comprehensive, enabling you to monitor AI-driven traffic, track conversions, and measure the impact of AEO improvements.`;
+  } else if (measurementScore >= 3) {
+    measurementFindings = `${hostname} has active web analytics implementation. Basic tracking is in place, but implementing LLM-specific traffic tracking and mention monitoring would provide deeper insights into AI visibility.`;
+  } else if (measurementScore >= 2) {
+    measurementFindings = `${hostname} has minimal measurement capabilities. Limited analytics make it difficult to track AI-driven traffic or measure the effectiveness of optimization efforts.`;
+  } else {
+    measurementFindings = `${hostname} lacks measurement infrastructure for tracking AI visibility. Without analytics, you cannot measure AI-driven traffic, monitor brand mentions, or evaluate AEO improvement impact.`;
+  }
+
+  return {
+    Content: {
+      findings: contentFindings,
+      coveragePercent: contentCoverage,
+      checksPass: contentChecksPass,
+      checksTotal: contentChecksTotal,
+    },
+    Technical: {
+      findings: technicalFindings,
+      coveragePercent: technicalCoverage,
+      checksPass: technicalChecksPass,
+      checksTotal: technicalChecksTotal,
+    },
+    Authority: {
+      findings: authorityFindings,
+      coveragePercent: authorityCoverage,
+      checksPass: authorityChecksPass,
+      checksTotal: authorityChecksTotal,
+    },
+    Measurement: {
+      findings: measurementFindings,
+      coveragePercent: measurementCoverage,
+      checksPass: measurementChecksPass,
+      checksTotal: measurementChecksTotal,
+    },
+  };
+}
+
+// Generate top 3 priorities based on impact and score
+function generateTopPriorities(recommendations: {
+  Content: AEORecommendation[];
+  Technical: AEORecommendation[];
+  Authority: AEORecommendation[];
+  Measurement: AEORecommendation[];
+}): AEORecommendation[] {
+  // Priority weight by category (higher = more important for AEO)
+  const categoryWeight: Record<string, number> = {
+    Content: 1.3,    // Content has highest impact
+    Technical: 1.2,  // Technical enables AI parsing
+    Authority: 1.1,  // Authority builds trust
+    Measurement: 1.0 // Measurement is foundational
+  };
+
+  // High-priority recommendation titles (foundational AEO elements)
+  const highPriorityTitles = [
+    "Add an FAQ Section",
+    "Implement Schema Markup",
+    "Add Organization Schema",
+    "Add Meta Descriptions",
+    "Improve Heading Hierarchy",
+    "Add Author Attribution",
+    "Implement Analytics",
+    "Create How-To Content",
+    "Add Structured FAQs",
+  ];
+
+  // Collect all recommendations with priority scores
+  const allRecs: Array<AEORecommendation & { priorityScore: number }> = [];
+
+  for (const [category, recs] of Object.entries(recommendations)) {
+    for (const rec of recs) {
+      const weight = categoryWeight[category] || 1;
+      const isHighPriority = highPriorityTitles.some(t =>
+        rec.title.toLowerCase().includes(t.toLowerCase())
+      );
+      const priorityScore = weight * (isHighPriority ? 2 : 1);
+
+      allRecs.push({
+        ...rec,
+        priorityScore,
+        priority: 0, // Will be set after sorting
+      });
+    }
+  }
+
+  // Sort by priority score and take top 3
+  allRecs.sort((a, b) => b.priorityScore - a.priorityScore);
+
+  return allRecs.slice(0, 3).map((rec, index) => ({
+    category: rec.category,
+    title: rec.title,
+    description: rec.description,
+    why: rec.why,
+    priority: index + 1,
+  }));
 }
