@@ -13,6 +13,36 @@ function getScoreColor(score: number): string {
   return "#ef4444";
 }
 
+// Plain text version for better deliverability
+export function generatePlainTextEmail(data: SimpleEmailData): string {
+  const { hostname, reportUrl, score, maturityLevel, name } = data;
+  const greeting = name ? `Hi ${name.split(' ')[0]},` : 'Hi there,';
+
+  return `
+${greeting}
+
+Your AEO readiness report for ${hostname} is ready!
+
+OVERALL SCORE: ${score.toFixed(1)}/5
+MATURITY LEVEL: ${maturityLevel}
+
+View your full report here:
+${reportUrl}
+
+YOUR REPORT INCLUDES:
+- Detailed score breakdown by pillar
+- What you're doing right
+- Personalized next steps
+- AEO maturity model explanation
+
+---
+UpClick Labs - Answer Engine Optimization Agency
+hello@upclicklabs.com | https://upclicklabs.com
+
+You received this email because you requested an AEO assessment.
+  `.trim();
+}
+
 export function generateSimpleReportEmail(data: SimpleEmailData): string {
   const { hostname, reportUrl, score, maturityLevel, name } = data;
   const greeting = name ? `Hi ${name.split(' ')[0]},` : 'Hi there,';
@@ -155,10 +185,13 @@ export function generateSimpleReportEmail(data: SimpleEmailData): string {
               <p style="margin: 0 0 8px; color: #525252; font-size: 13px;">
                 UpClick Labs · Answer Engine Optimization Agency
               </p>
-              <p style="margin: 0; color: #404040; font-size: 12px;">
+              <p style="margin: 0 0 12px; color: #404040; font-size: 12px;">
                 <a href="mailto:hello@upclicklabs.com" style="color: #525252; text-decoration: none;">hello@upclicklabs.com</a>
                 <span style="margin: 0 8px;">·</span>
                 <a href="https://upclicklabs.com" style="color: #d4a000; text-decoration: none;">upclicklabs.com</a>
+              </p>
+              <p style="margin: 0; color: #333; font-size: 11px;">
+                You received this email because you requested an AEO assessment.
               </p>
             </td>
           </tr>

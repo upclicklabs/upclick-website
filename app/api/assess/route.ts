@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import { analyzeWebsite } from "@/lib/aeo-analyzer";
-import { generateSimpleReportEmail } from "@/lib/email-templates-simple";
+import { generateSimpleReportEmail, generatePlainTextEmail } from "@/lib/email-templates-simple";
 
 // Lazy initialize Resend to avoid build-time errors
 function getResendClient() {
@@ -151,14 +151,16 @@ export async function POST(request: NextRequest) {
       reportUrl,
     }).catch(err => console.error("Google Sheets error:", err));
 
-    // Generate simple email with link
-    const emailHtml = generateSimpleReportEmail({
+    // Generate email content
+    const emailData = {
       hostname,
       reportUrl,
       score: report.scores.overall,
       maturityLevel: report.maturityLevel,
       name,
-    });
+    };
+    const emailHtml = generateSimpleReportEmail(emailData);
+    const emailText = generatePlainTextEmail(emailData);
 
     // Send email via Resend
     const resend = getResendClient();
@@ -169,6 +171,7 @@ export async function POST(request: NextRequest) {
           to: email,
           subject: `Your AEO Assessment for ${hostname}`,
           html: emailHtml,
+          text: emailText,
         });
 
         if (error) {

@@ -81,7 +81,7 @@ export function AssessmentForm() {
 
         <div>
           <h3 className="text-xl font-serif-elegant text-foreground">
-            Check Your Inbox!
+            Check Your Inbox & Spam Folder!
           </h3>
           <p className="mt-3 text-muted-foreground">
             Your AEO Assessment Report has been sent to:
