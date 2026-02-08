@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
-import { analyzeWebsite } from "@/lib/aeo-analyzer";
+import { analyzeWebsite } from "@/lib/assessment";
 import { generateSimpleReportEmail, generatePlainTextEmail } from "@/lib/email-templates-simple";
+
+export const maxDuration = 60; // Allow up to 60s for parallel API calls (PSI, etc.)
 
 // Lazy initialize Resend to avoid build-time errors
 function getResendClient() {
@@ -45,8 +47,8 @@ async function sendToGoogleSheets(data: {
     timestamp: new Date().toISOString(),
   };
 
-  console.log("Sending to Google Sheets:", webhookUrl);
-  console.log("Payload:", JSON.stringify(payload));
+  console.log("Sending lead to Google Sheets...");
+  console.log("Payload:", JSON.stringify({ ...payload, email: "***" }));
 
   try {
     // Google Apps Script redirects, so we need to follow redirects

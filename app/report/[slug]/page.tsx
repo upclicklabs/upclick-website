@@ -77,25 +77,25 @@ function generatePillarSummaries(report: AEOReport): AEOReport["pillarSummaries"
       findings: getFindings("Content", content),
       coveragePercent: Math.round((content / 5) * 100),
       checksPass: strengths.filter(s => s.category === "Content").length,
-      checksTotal: 10,
+      checksTotal: 16,
     },
     Technical: {
       findings: getFindings("Technical", technical),
       coveragePercent: Math.round((technical / 5) * 100),
       checksPass: strengths.filter(s => s.category === "Technical").length,
-      checksTotal: 12,
+      checksTotal: 14,
     },
     Authority: {
       findings: getFindings("Authority", authority),
       coveragePercent: Math.round((authority / 5) * 100),
       checksPass: strengths.filter(s => s.category === "Authority").length,
-      checksTotal: 12,
+      checksTotal: 17,
     },
     Measurement: {
       findings: getFindings("Measurement", measurement),
       coveragePercent: Math.round((measurement / 5) * 100),
       checksPass: strengths.filter(s => s.category === "Measurement").length,
-      checksTotal: 8,
+      checksTotal: 11,
     },
   };
 }
@@ -647,6 +647,303 @@ export default function ReportPage() {
           </div>
         </div>
       </section>
+
+      {/* Analysis Details - Data from APIs */}
+      {(report.technicalDetails || report.contentDetails || report.authorityDetails || report.measurementDetails) && (
+        <section className="container mx-auto px-6 py-12 border-t border-neutral-800">
+          <div className="max-w-5xl mx-auto">
+            <h2 className="text-2xl md:text-3xl font-serif text-center mb-3">Analysis Details</h2>
+            <p className="text-neutral-200 text-center mb-10 max-w-2xl mx-auto text-sm">
+              Data collected from real-time API checks and page analysis.
+            </p>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Technical Details */}
+              {report.technicalDetails && (
+                <div className="bg-neutral-900/50 rounded-xl border border-neutral-800 p-6">
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className="w-2 h-2 rounded-full bg-blue-500" />
+                    <h3 className="text-sm font-semibold text-blue-400 uppercase tracking-wider">Technical</h3>
+                  </div>
+                  <div className="space-y-3 text-sm">
+                    {report.technicalDetails.performanceScore !== undefined && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-neutral-400">Performance (PSI)</span>
+                        <span className={`font-mono font-medium ${report.technicalDetails.performanceScore >= 90 ? 'text-green-400' : report.technicalDetails.performanceScore >= 50 ? 'text-yellow-400' : 'text-red-400'}`}>
+                          {report.technicalDetails.performanceScore}/100
+                        </span>
+                      </div>
+                    )}
+                    {report.technicalDetails.accessibilityScore !== undefined && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-neutral-400">Accessibility (PSI)</span>
+                        <span className={`font-mono font-medium ${report.technicalDetails.accessibilityScore >= 90 ? 'text-green-400' : report.technicalDetails.accessibilityScore >= 50 ? 'text-yellow-400' : 'text-red-400'}`}>
+                          {report.technicalDetails.accessibilityScore}/100
+                        </span>
+                      </div>
+                    )}
+                    {report.technicalDetails.seoScore !== undefined && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-neutral-400">SEO (PSI)</span>
+                        <span className={`font-mono font-medium ${report.technicalDetails.seoScore >= 90 ? 'text-green-400' : report.technicalDetails.seoScore >= 50 ? 'text-yellow-400' : 'text-red-400'}`}>
+                          {report.technicalDetails.seoScore}/100
+                        </span>
+                      </div>
+                    )}
+                    {report.technicalDetails.coreWebVitals && (
+                      <>
+                        <div className="pt-2 border-t border-neutral-800">
+                          <span className="text-xs text-neutral-500 uppercase tracking-wider">Core Web Vitals</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-neutral-400">LCP</span>
+                          <span className={`font-mono font-medium ${report.technicalDetails.coreWebVitals.lcp <= 2500 ? 'text-green-400' : report.technicalDetails.coreWebVitals.lcp <= 4000 ? 'text-yellow-400' : 'text-red-400'}`}>
+                            {(report.technicalDetails.coreWebVitals.lcp / 1000).toFixed(1)}s
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-neutral-400">FCP</span>
+                          <span className={`font-mono font-medium ${report.technicalDetails.coreWebVitals.fcp <= 1800 ? 'text-green-400' : report.technicalDetails.coreWebVitals.fcp <= 3000 ? 'text-yellow-400' : 'text-red-400'}`}>
+                            {(report.technicalDetails.coreWebVitals.fcp / 1000).toFixed(1)}s
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-neutral-400">CLS</span>
+                          <span className={`font-mono font-medium ${report.technicalDetails.coreWebVitals.cls <= 0.1 ? 'text-green-400' : report.technicalDetails.coreWebVitals.cls <= 0.25 ? 'text-yellow-400' : 'text-red-400'}`}>
+                            {report.technicalDetails.coreWebVitals.cls.toFixed(3)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-neutral-400">TBT</span>
+                          <span className={`font-mono font-medium ${report.technicalDetails.coreWebVitals.tbt <= 200 ? 'text-green-400' : report.technicalDetails.coreWebVitals.tbt <= 600 ? 'text-yellow-400' : 'text-red-400'}`}>
+                            {report.technicalDetails.coreWebVitals.tbt}ms
+                          </span>
+                        </div>
+                      </>
+                    )}
+                    {report.technicalDetails.sslValid !== undefined && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-neutral-400">SSL Certificate</span>
+                        <span className={`font-mono font-medium ${report.technicalDetails.sslValid ? 'text-green-400' : 'text-red-400'}`}>
+                          {report.technicalDetails.sslValid ? `Valid (${report.technicalDetails.sslDaysRemaining}d)` : 'Invalid'}
+                        </span>
+                      </div>
+                    )}
+                    <div className="flex justify-between items-center">
+                      <span className="text-neutral-400">Sitemap</span>
+                      <span className={`font-mono font-medium ${report.technicalDetails.sitemapFound ? 'text-green-400' : 'text-neutral-500'}`}>
+                        {report.technicalDetails.sitemapFound ? (report.technicalDetails.sitemapUrlCount ? `Found (${report.technicalDetails.sitemapUrlCount} URLs)` : 'Found') : 'Not found'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-neutral-400">robots.txt</span>
+                      <span className={`font-mono font-medium ${report.technicalDetails.robotsTxtFound ? 'text-green-400' : 'text-neutral-500'}`}>
+                        {report.technicalDetails.robotsTxtFound ? 'Found' : 'Not found'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-neutral-400">llms.txt</span>
+                      <span className={`font-mono font-medium ${report.technicalDetails.llmsTxtFound ? 'text-green-400' : 'text-neutral-500'}`}>
+                        {report.technicalDetails.llmsTxtFound ? 'Found' : 'Not found'}
+                      </span>
+                    </div>
+                    {report.technicalDetails.aiBotsCrawlable !== undefined && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-neutral-400">AI Bots Crawlable</span>
+                        <span className={`font-mono font-medium ${report.technicalDetails.aiBotsCrawlable ? 'text-green-400' : 'text-red-400'}`}>
+                          {report.technicalDetails.aiBotsCrawlable ? 'Yes' : 'Blocked'}
+                        </span>
+                      </div>
+                    )}
+                    {report.technicalDetails.blockedAiBots && report.technicalDetails.blockedAiBots.length > 0 && (
+                      <div className="pt-1">
+                        <span className="text-xs text-red-400">Blocked: {report.technicalDetails.blockedAiBots.join(', ')}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Content Details */}
+              {report.contentDetails && (
+                <div className="bg-neutral-900/50 rounded-xl border border-neutral-800 p-6">
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className="w-2 h-2 rounded-full bg-purple-500" />
+                    <h3 className="text-sm font-semibold text-purple-400 uppercase tracking-wider">Content</h3>
+                  </div>
+                  <div className="space-y-3 text-sm">
+                    {report.contentDetails.readabilityScore !== undefined && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-neutral-400">Readability (Flesch)</span>
+                        <span className={`font-mono font-medium ${report.contentDetails.readabilityScore >= 60 && report.contentDetails.readabilityScore <= 75 ? 'text-green-400' : report.contentDetails.readabilityScore >= 40 ? 'text-yellow-400' : 'text-red-400'}`}>
+                          {report.contentDetails.readabilityScore}
+                        </span>
+                      </div>
+                    )}
+                    {report.contentDetails.readabilityGrade !== undefined && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-neutral-400">Grade Level</span>
+                        <span className="font-mono font-medium text-neutral-200">
+                          {report.contentDetails.readabilityGrade}
+                        </span>
+                      </div>
+                    )}
+                    {report.contentDetails.mainContentWordCount !== undefined && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-neutral-400">Main Content Words</span>
+                        <span className="font-mono font-medium text-neutral-200">
+                          {report.contentDetails.mainContentWordCount.toLocaleString()}
+                        </span>
+                      </div>
+                    )}
+                    {report.contentDetails.imageAltCoverage !== undefined && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-neutral-400">Image Alt Coverage</span>
+                        <span className={`font-mono font-medium ${report.contentDetails.imageAltCoverage >= 90 ? 'text-green-400' : report.contentDetails.imageAltCoverage >= 50 ? 'text-yellow-400' : 'text-red-400'}`}>
+                          {report.contentDetails.imageAltCoverage}%
+                        </span>
+                      </div>
+                    )}
+                    {report.contentDetails.internalLinkCount !== undefined && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-neutral-400">Internal Links</span>
+                        <span className="font-mono font-medium text-neutral-200">
+                          {report.contentDetails.internalLinkCount}
+                        </span>
+                      </div>
+                    )}
+                    {report.contentDetails.sectionDensity !== undefined && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-neutral-400">Section Density</span>
+                        <span className={`font-mono font-medium ${report.contentDetails.sectionDensity >= 120 && report.contentDetails.sectionDensity <= 180 ? 'text-green-400' : 'text-yellow-400'}`}>
+                          {report.contentDetails.sectionDensity} words/section
+                        </span>
+                      </div>
+                    )}
+                    {report.contentDetails.dataPointCount !== undefined && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-neutral-400">Data Points</span>
+                        <span className={`font-mono font-medium ${report.contentDetails.dataPointCount >= 5 ? 'text-green-400' : 'text-neutral-200'}`}>
+                          {report.contentDetails.dataPointCount}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Authority Details */}
+              {report.authorityDetails && (
+                <div className="bg-neutral-900/50 rounded-xl border border-neutral-800 p-6">
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className="w-2 h-2 rounded-full bg-pink-500" />
+                    <h3 className="text-sm font-semibold text-pink-400 uppercase tracking-wider">Authority</h3>
+                  </div>
+                  <div className="space-y-3 text-sm">
+                    {report.authorityDetails.knowledgeGraphFound !== undefined && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-neutral-400">Google Knowledge Graph</span>
+                        <span className={`font-mono font-medium ${report.authorityDetails.knowledgeGraphFound ? 'text-green-400' : 'text-neutral-500'}`}>
+                          {report.authorityDetails.knowledgeGraphFound ? (report.authorityDetails.knowledgeGraphType ? `Found (${report.authorityDetails.knowledgeGraphType})` : 'Found') : 'Not found'}
+                        </span>
+                      </div>
+                    )}
+                    {report.authorityDetails.redditMentions !== undefined && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-neutral-400">Reddit Mentions</span>
+                        <span className={`font-mono font-medium ${report.authorityDetails.redditMentions > 0 ? 'text-green-400' : 'text-neutral-500'}`}>
+                          {report.authorityDetails.redditMentions > 0 ? `${report.authorityDetails.redditMentions} posts` : 'None found'}
+                        </span>
+                      </div>
+                    )}
+                    {report.authorityDetails.redditSubreddits && report.authorityDetails.redditSubreddits.length > 0 && (
+                      <div className="pt-1">
+                        <span className="text-xs text-neutral-500">Subreddits: {report.authorityDetails.redditSubreddits.slice(0, 5).map(s => `r/${s}`).join(', ')}</span>
+                      </div>
+                    )}
+                    {report.authorityDetails.socialPlatformCount !== undefined && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-neutral-400">Social Platforms</span>
+                        <span className="font-mono font-medium text-neutral-200">
+                          {report.authorityDetails.socialPlatformCount}
+                        </span>
+                      </div>
+                    )}
+                    {report.authorityDetails.externalCitationCount !== undefined && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-neutral-400">External Citations</span>
+                        <span className="font-mono font-medium text-neutral-200">
+                          {report.authorityDetails.externalCitationCount}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Measurement Details */}
+              {report.measurementDetails && (
+                <div className="bg-neutral-900/50 rounded-xl border border-neutral-800 p-6">
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className="w-2 h-2 rounded-full bg-orange-500" />
+                    <h3 className="text-sm font-semibold text-orange-400 uppercase tracking-wider">Measurement</h3>
+                  </div>
+                  <div className="space-y-3 text-sm">
+                    {report.measurementDetails.analyticsTools && report.measurementDetails.analyticsTools.length > 0 && (
+                      <div>
+                        <span className="text-neutral-400 block mb-1">Analytics</span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {report.measurementDetails.analyticsTools.map((tool, i) => (
+                            <span key={i} className="text-xs bg-green-500/15 text-green-400 px-2 py-0.5 rounded-full border border-green-500/30">
+                              {tool}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {report.measurementDetails.tagManager && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-neutral-400">Tag Manager</span>
+                        <span className="font-mono font-medium text-green-400">{report.measurementDetails.tagManager}</span>
+                      </div>
+                    )}
+                    {report.measurementDetails.crm && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-neutral-400">CRM</span>
+                        <span className="font-mono font-medium text-green-400">{report.measurementDetails.crm}</span>
+                      </div>
+                    )}
+                    {report.measurementDetails.heatmapTool && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-neutral-400">Heatmap / Session Recording</span>
+                        <span className="font-mono font-medium text-green-400">{report.measurementDetails.heatmapTool}</span>
+                      </div>
+                    )}
+                    {report.measurementDetails.cookieConsent && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-neutral-400">Cookie Consent</span>
+                        <span className="font-mono font-medium text-green-400">{report.measurementDetails.cookieConsent}</span>
+                      </div>
+                    )}
+                    {report.measurementDetails.abTestTool && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-neutral-400">A/B Testing</span>
+                        <span className="font-mono font-medium text-green-400">{report.measurementDetails.abTestTool}</span>
+                      </div>
+                    )}
+                    {(!report.measurementDetails.analyticsTools || report.measurementDetails.analyticsTools.length === 0) &&
+                     !report.measurementDetails.tagManager &&
+                     !report.measurementDetails.crm &&
+                     !report.measurementDetails.heatmapTool && (
+                      <p className="text-neutral-500 text-xs italic">No measurement tools detected</p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Maturity Model */}
       <section className="container mx-auto px-6 py-12">

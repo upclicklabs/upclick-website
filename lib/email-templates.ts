@@ -47,6 +47,46 @@ export interface AEOReport {
   };
   topPriorities?: AEORecommendation[];
   analyzedAt: string;
+  // Optional detail fields from API-based analysis
+  technicalDetails?: {
+    performanceScore?: number;
+    accessibilityScore?: number;
+    seoScore?: number;
+    coreWebVitals?: { lcp: number; fcp: number; cls: number; tbt: number };
+    sslValid?: boolean;
+    sslDaysRemaining?: number;
+    sitemapFound?: boolean;
+    sitemapUrlCount?: number;
+    robotsTxtFound?: boolean;
+    llmsTxtFound?: boolean;
+    aiBotsCrawlable?: boolean;
+    blockedAiBots?: string[];
+  };
+  contentDetails?: {
+    readabilityScore?: number;
+    readabilityGrade?: number;
+    imageAltCoverage?: number;
+    mainContentWordCount?: number;
+    internalLinkCount?: number;
+    sectionDensity?: number;
+    dataPointCount?: number;
+  };
+  authorityDetails?: {
+    knowledgeGraphFound?: boolean;
+    knowledgeGraphType?: string;
+    socialPlatformCount?: number;
+    externalCitationCount?: number;
+    redditMentions?: number;
+    redditSubreddits?: string[];
+  };
+  measurementDetails?: {
+    analyticsTools?: string[];
+    tagManager?: string | null;
+    crm?: string | null;
+    heatmapTool?: string | null;
+    cookieConsent?: string | null;
+    abTestTool?: string | null;
+  };
 }
 
 function getScoreColor(score: number): string {
