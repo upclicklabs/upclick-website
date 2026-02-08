@@ -3,7 +3,7 @@
 import { useSearchParams } from "next/navigation";
 import { decodeReport } from "@/lib/report-url";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { AEOReport, PillarSummary, AEORecommendation } from "@/lib/email-templates";
 
 function getScoreColor(score: number): string {
@@ -164,7 +164,26 @@ function CopyButton() {
   );
 }
 
+function ReportLoading() {
+  return (
+    <div className="min-h-screen bg-black text-white flex items-center justify-center">
+      <div className="text-center">
+        <div className="w-12 h-12 border-2 border-[#d4a000] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+        <p className="text-neutral-400">Loading report...</p>
+      </div>
+    </div>
+  );
+}
+
 export default function ReportPage() {
+  return (
+    <Suspense fallback={<ReportLoading />}>
+      <ReportContent />
+    </Suspense>
+  );
+}
+
+function ReportContent() {
   const searchParams = useSearchParams();
   const [report, setReport] = useState<AEOReport | null>(null);
   const [loading, setLoading] = useState(true);
