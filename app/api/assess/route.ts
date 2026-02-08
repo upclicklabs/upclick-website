@@ -119,29 +119,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Store report and get short URL
+    // Generate report URL using compressed URL encoding
+    // Note: In-memory store doesn't persist across Vercel serverless invocations,
+    // so we always use the compressed URL approach which embeds data in the URL itself.
     const baseUrl = getBaseUrl(request);
     const hostname = new URL(report.url).hostname.replace("www.", "");
 
-    // Store the report via internal API call
-    const storeResponse = await fetch(`${baseUrl}/api/reports`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(report),
-    });
-
-    let reportUrl: string;
-
-    if (storeResponse.ok) {
-      const storeData = await storeResponse.json();
-      reportUrl = `${baseUrl}${storeData.reportUrl}`;
-      console.log("Short report URL generated:", reportUrl);
-    } else {
-      // Fallback to old compressed URL method if storage fails
-      const { generateReportUrl } = await import("@/lib/report-url");
-      reportUrl = generateReportUrl(report, baseUrl);
-      console.log("Fallback to compressed URL:", reportUrl.substring(0, 100) + "...");
-    }
+    const { generateReportUrl } = await import("@/lib/report-url");
+    // Strip detail fields to keep URL shorter (core report data is sufficient for display)
+    const reportForUrl = { ...report };
+    delete (reportForUrl as Record<string, unknown>).technicalDetails;
+    delete (reportForUrl as Record<string, unknown>).contentDetails;
+    delete (reportForUrl as Record<string, unknown>).authorityDetails;
+    delete (reportForUrl as Record<string, unknown>).measurementDetails;
+    const reportUrl = generateReportUrl(reportForUrl, baseUrl);
+    console.log("Report URL generated:", reportUrl.substring(0, 100) + "...");
 
     // Send lead to Google Sheets (fire and forget - don't block on this)
     sendToGoogleSheets({
