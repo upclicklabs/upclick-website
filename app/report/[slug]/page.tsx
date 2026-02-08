@@ -201,9 +201,10 @@ export default function ReportPage() {
         return;
       }
 
-      // Fall back to encoded data in URL (old format)
+      // Fall back to encoded data in URL
       const encoded = searchParams.get("d");
       if (encoded) {
+        console.log("Decoding report from URL, encoded length:", encoded.length);
         const decoded = decodeReport(encoded);
         if (decoded) {
           // Generate pillarSummaries and topPriorities if not present
@@ -215,9 +216,11 @@ export default function ReportPage() {
           }
           setReport(decoded);
         } else {
+          console.error("Failed to decode report data. Encoded param length:", encoded.length);
           setError(true);
         }
       } else {
+        console.error("No report data found in URL params. Available params:", Array.from(searchParams.keys()));
         setError(true);
       }
       setLoading(false);
