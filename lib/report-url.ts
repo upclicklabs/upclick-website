@@ -23,6 +23,19 @@ export interface MinimalReport {
   at: string; // analyzedAt
 }
 
+// Truncate a string to maxLen characters
+function truncate(str: string | undefined, maxLen: number): string {
+  if (!str) return "";
+  return str.length > maxLen ? str.slice(0, maxLen) + "..." : str;
+}
+
+// Max recommendations per pillar and strengths to keep URL under browser limits
+const MAX_RECS_PER_PILLAR = 3;
+const MAX_STRENGTHS = 5;
+const MAX_DESC_LEN = 120;
+const MAX_WHY_LEN = 80;
+const MAX_MATURITY_DESC_LEN = 150;
+
 // Convert full report to minimal format
 function toMinimal(report: AEOReport): MinimalReport {
   return {
@@ -35,32 +48,32 @@ function toMinimal(report: AEOReport): MinimalReport {
       o: report.scores.overall,
     },
     l: report.maturityLevel,
-    d: report.maturityDescription,
-    st: (report.strengths || []).slice(0, 8).map((s) => ({
+    d: truncate(report.maturityDescription, MAX_MATURITY_DESC_LEN),
+    st: (report.strengths || []).slice(0, MAX_STRENGTHS).map((s) => ({
       c: s.category,
       t: s.title,
-      d: s.description,
+      d: truncate(s.description, MAX_DESC_LEN),
     })),
     r: {
-      C: (report.recommendationsByPillar.Content || []).map((r) => ({
+      C: (report.recommendationsByPillar.Content || []).slice(0, MAX_RECS_PER_PILLAR).map((r) => ({
         t: r.title,
-        d: r.description,
-        w: r.why,
+        d: truncate(r.description, MAX_DESC_LEN),
+        w: truncate(r.why, MAX_WHY_LEN),
       })),
-      T: (report.recommendationsByPillar.Technical || []).map((r) => ({
+      T: (report.recommendationsByPillar.Technical || []).slice(0, MAX_RECS_PER_PILLAR).map((r) => ({
         t: r.title,
-        d: r.description,
-        w: r.why,
+        d: truncate(r.description, MAX_DESC_LEN),
+        w: truncate(r.why, MAX_WHY_LEN),
       })),
-      A: (report.recommendationsByPillar.Authority || []).map((r) => ({
+      A: (report.recommendationsByPillar.Authority || []).slice(0, MAX_RECS_PER_PILLAR).map((r) => ({
         t: r.title,
-        d: r.description,
-        w: r.why,
+        d: truncate(r.description, MAX_DESC_LEN),
+        w: truncate(r.why, MAX_WHY_LEN),
       })),
-      M: (report.recommendationsByPillar.Measurement || []).map((r) => ({
+      M: (report.recommendationsByPillar.Measurement || []).slice(0, MAX_RECS_PER_PILLAR).map((r) => ({
         t: r.title,
-        d: r.description,
-        w: r.why,
+        d: truncate(r.description, MAX_DESC_LEN),
+        w: truncate(r.why, MAX_WHY_LEN),
       })),
     },
     at: report.analyzedAt,
@@ -127,11 +140,14 @@ export function encodeReport(report: AEOReport): string {
 export function decodeReport(encoded: string): AEOReport | null {
   try {
     const json = LZString.decompressFromEncodedURIComponent(encoded);
-    if (!json) return null;
+    if (!json) {
+      console.error("LZ decompression returned null. Encoded length:", encoded.length);
+      return null;
+    }
     const minimal = JSON.parse(json) as MinimalReport;
     return fromMinimal(minimal);
   } catch (error) {
-    console.error("Failed to decode report:", error);
+    console.error("Failed to decode report. Encoded length:", encoded.length, "Error:", error);
     return null;
   }
 }

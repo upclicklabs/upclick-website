@@ -133,7 +133,12 @@ export async function POST(request: NextRequest) {
     delete (reportForUrl as Record<string, unknown>).authorityDetails;
     delete (reportForUrl as Record<string, unknown>).measurementDetails;
     const reportUrl = generateReportUrl(reportForUrl, baseUrl);
-    console.log("Report URL generated:", reportUrl.substring(0, 100) + "...");
+    console.log("Report URL length:", reportUrl.length, "chars");
+    console.log("Report URL preview:", reportUrl.substring(0, 100) + "...");
+
+    if (reportUrl.length > 8000) {
+      console.warn("WARNING: Report URL exceeds 8000 chars — may be truncated by browsers/email clients");
+    }
 
     // Send lead to Google Sheets (fire and forget - don't block on this)
     sendToGoogleSheets({
