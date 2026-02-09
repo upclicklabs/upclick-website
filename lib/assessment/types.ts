@@ -36,6 +36,8 @@ export interface ContentDetails {
   internalLinkCount?: number;
   sectionDensity?: number; // avg words per section
   dataPointCount?: number;
+  answerFirstRatio?: number; // percentage of sections with answer-first formatting
+  extractableRatio?: number; // percentage of paragraphs that are self-contained
 }
 
 export interface AuthorityDetails {
@@ -54,6 +56,9 @@ export interface MeasurementDetails {
   heatmapTool?: string | null;
   cookieConsent?: string | null;
   abTestTool?: string | null;
+  aiReferralTracking?: boolean; // tracks traffic from AI platforms
+  utmDiscipline?: number | null; // percentage of outbound links with UTM params
+  searchConsoleVerified?: boolean; // Google Search Console meta tag present
 }
 
 // API result types

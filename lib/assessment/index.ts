@@ -130,7 +130,7 @@ export async function analyzeWebsite(url: string): Promise<AEOReport> {
     knowledgeGraphData,
     redditData,
   });
-  const measurementAnalysis = analyzeMeasurement(homePage);
+  const measurementAnalysis = analyzeMeasurement(homePage, resolvedUrl);
 
   // ═══════════════════════════════════════════════════════════════
   // PHASE 5: Compile results

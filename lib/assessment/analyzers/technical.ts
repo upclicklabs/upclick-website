@@ -62,13 +62,19 @@ export function analyzeTechnical(
         title: "Rich Schema Coverage",
         description: `${diverseSchemas} different schema types found — comprehensive structured data coverage.`,
       });
-    } else if (!hasFAQSchema && !hasArticleSchema) {
-      recommendations.push({
-        category: "Technical",
-        title: "Add More Schema Types",
-        description: "Add FAQ Schema to Q&A content and Article Schema to blog posts for better AI recognition.",
-        why: "73% of page-one results use schema markup. Multiple schema types improve AI content understanding.",
-      });
+    } else {
+      // Has some schema but lacks diversity — suggest adding FAQ/Article
+      const missing = [];
+      if (!hasFAQSchema) missing.push("FAQ");
+      if (!hasArticleSchema) missing.push("Article");
+      if (missing.length > 0) {
+        recommendations.push({
+          category: "Technical",
+          title: "Add More Schema Types",
+          description: `Add ${missing.join(" and ")} Schema for better AI recognition. You have ${diverseSchemas} type(s) — aim for 3+.`,
+          why: "73% of page-one results use schema markup. Multiple schema types improve AI content understanding.",
+        });
+      }
     }
   } else {
     recommendations.push({

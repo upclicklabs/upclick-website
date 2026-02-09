@@ -103,14 +103,7 @@ export function analyzeContent(
     strengths.push({
       category: "Content",
       title: "Good Content Length",
-      description: `Your site has a decent amount of content (~${Math.round(mainWordCount / 100) * 100} words).`,
-    });
-    recommendations.push({
-      category: "Content",
-      title: "Expand Content Depth",
-      description:
-        "Aim for 1500+ words of valuable information that thoroughly answers related questions.",
-      why: "In-depth content tends to get cited more by AI because it provides complete answers.",
+      description: `Your site has ~${Math.round(mainWordCount / 100) * 100} words of main content. Expanding to 1500+ words can improve AI citation rates.`,
     });
   } else {
     recommendations.push({
@@ -325,7 +318,11 @@ export function analyzeContent(
 
   // ─── NEW: Internal Linking (0.25 pts) ───
   const baseHostname = (() => {
-    try { return new URL(page.$.html()?.match(/<link[^>]+rel=["']canonical["'][^>]+href=["']([^"']+)["']/)?.[1] || "").hostname; } catch { return ""; }
+    try {
+      const canonical = page.$('link[rel="canonical"]').attr("href") || "";
+      if (canonical) return new URL(canonical).hostname;
+      return "";
+    } catch { return ""; }
   })();
 
   let internalLinkCount = 0;
@@ -404,6 +401,114 @@ export function analyzeContent(
         category: "Content",
         title: "Optimal Section Length",
         description: `Average section length: ~${avgWordsPerSection} words. The optimal range (120-180 words) makes content easy for AI to extract.`,
+      });
+    }
+  }
+
+  // ─── NEW: Answer-First Formatting (0.5 pts) ───
+  // Check if content leads with direct answers before elaboration
+  // AI systems strongly prefer content that starts with the answer
+  let answerFirstCount = 0;
+  let sectionCount = 0;
+  all$("h2, h3").each((_, el) => {
+    sectionCount++;
+    const heading = all$(el);
+    // Get the first paragraph or text node after this heading
+    const nextP = heading.next("p");
+    if (nextP.length > 0) {
+      const firstParagraph = nextP.text().trim();
+      const words = firstParagraph.split(/\s+/);
+      // Answer-first: paragraph starts with a definitive statement (not a question,
+      // not "In this section...", not a vague intro). Check for definitional patterns.
+      const isAnswerFirst =
+        words.length >= 5 &&
+        words.length <= 120 && // reasonable first paragraph length
+        !firstParagraph.endsWith("?") &&
+        !/^(in this (section|article|guide|post))/i.test(firstParagraph) &&
+        !/^(let's (talk|discuss|explore|look|dive))/i.test(firstParagraph) &&
+        !/^(we('ll| will) (discuss|explore|cover|look))/i.test(firstParagraph) &&
+        (/\bis\b|\bare\b|\bcan\b|\bshould\b|\bmeans?\b|\brefers?\sto\b|\binvolves?\b/i.test(
+          words.slice(0, 8).join(" ")
+        ) ||
+          /^\d/.test(firstParagraph) || // starts with a number/stat
+          /^(yes|no)\b/i.test(firstParagraph)); // direct yes/no answer
+      if (isAnswerFirst) answerFirstCount++;
+    }
+  });
+
+  if (sectionCount >= 2) {
+    const answerFirstRatio = answerFirstCount / sectionCount;
+    details.answerFirstRatio = Math.round(answerFirstRatio * 100);
+
+    if (answerFirstRatio >= 0.5) {
+      score += 0.5;
+      strengths.push({
+        category: "Content",
+        title: "Answer-First Content Structure",
+        description: `${Math.round(answerFirstRatio * 100)}% of sections lead with a direct answer. AI systems strongly prefer content that gives the answer upfront.`,
+      });
+    } else if (answerFirstRatio >= 0.25) {
+      score += 0.25;
+      strengths.push({
+        category: "Content",
+        title: "Some Answer-First Content",
+        description: `${Math.round(answerFirstRatio * 100)}% of sections lead with answers. Aim for 50%+ for better AI citation rates.`,
+      });
+    } else {
+      recommendations.push({
+        category: "Content",
+        title: "Use Answer-First Formatting",
+        description:
+          "Start each content section with a direct, concise answer before providing context and elaboration. Lead with 'X is...' rather than 'In this section, we explore...'.",
+        why: "AI models extract the first 1-2 sentences of each section. Answer-first content is 3x more likely to be quoted in AI responses.",
+      });
+    }
+  }
+
+  // ─── NEW: Paragraph Extractability (0.5 pts) ───
+  // Check if paragraphs can stand alone without surrounding context
+  let extractableCount = 0;
+  let totalParagraphs = 0;
+  const backwardRefPattern = /^(as (mentioned|noted|discussed|stated|described) (above|earlier|previously|before))|^(this (is|means|refers|shows|demonstrates|indicates))|^(the (above|aforementioned|previous|preceding))|^(these |those )|^(such |said )|^(it (is|was|has|can|should|will) )/i;
+
+  all$("main p, article p, [role='main'] p").each((_, el) => {
+    const text = all$(el).text().trim();
+    if (text.length < 30) return; // skip tiny fragments
+    totalParagraphs++;
+
+    const hasBackwardRef = backwardRefPattern.test(text);
+    const hasAmbiguousPronounStart = /^(he |she |they |we |it )/i.test(text) && !/^(it is |it's |it can |it should )/i.test(text);
+
+    if (!hasBackwardRef && !hasAmbiguousPronounStart) {
+      extractableCount++;
+    }
+  });
+
+  if (totalParagraphs >= 3) {
+    const extractableRatio = extractableCount / totalParagraphs;
+    details.extractableRatio = Math.round(extractableRatio * 100);
+
+    if (extractableRatio >= 0.8) {
+      score += 0.5;
+      strengths.push({
+        category: "Content",
+        title: "Highly Extractable Content",
+        description: `${Math.round(extractableRatio * 100)}% of paragraphs can be understood without surrounding context — ideal for AI citation.`,
+      });
+    } else if (extractableRatio >= 0.6) {
+      score += 0.25;
+      strengths.push({
+        category: "Content",
+        title: "Mostly Extractable Content",
+        description: `${Math.round(extractableRatio * 100)}% of paragraphs are self-contained. Reducing backward references would improve AI citability.`,
+      });
+    } else {
+      recommendations.push({
+        category: "Content",
+        title: "Make Paragraphs Self-Contained",
+        description:
+          "Rewrite paragraphs that start with 'As mentioned above', 'This means', 'It is' or similar backward references. Each paragraph should be understandable on its own.",
+        why: "AI systems extract individual paragraphs — if yours require context from earlier in the page, they can't be cited accurately.",
       });
     }
   }

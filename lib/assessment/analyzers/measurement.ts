@@ -2,7 +2,7 @@ import { AEOStrength, AEORecommendation } from "../../email-templates";
 import { MeasurementAnalysis, MeasurementDetails } from "../types";
 import { ParsedPage } from "../cheerio-parser";
 
-export function analyzeMeasurement(page: ParsedPage): MeasurementAnalysis {
+export function analyzeMeasurement(page: ParsedPage, pageUrl?: string): MeasurementAnalysis {
   const strengths: AEOStrength[] = [];
   const recommendations: AEORecommendation[] = [];
   let score = 0;
@@ -273,30 +273,141 @@ export function analyzeMeasurement(page: ParsedPage): MeasurementAnalysis {
     });
   }
 
-  // ─── Always-On Recommendations (can't detect from HTML) ───
-  recommendations.push({
-    category: "Measurement",
-    title: "Track AI Platform Traffic",
-    description:
-      "Set up GA4 custom channel with regex filter for AI referrers: chatgpt.com, perplexity.ai, claude.ai, gemini.google.com, copilot.microsoft.com.",
-    why: "AI traffic surged 527% in 2025. ChatGPT drives 78% of AI visits, but Claude has the highest session value ($4.56/visit).",
-  });
+  // ─── NEW: AI Platform Referral Tracking (0.5 pts) ───
+  // Check if the site has specific tracking for AI referrer traffic
+  const aiReferrerDomains = [
+    "chatgpt.com", "chat.openai.com",
+    "perplexity.ai",
+    "gemini.google.com",
+    "claude.ai",
+    "copilot.microsoft.com",
+  ];
+  const hasAiReferrerTracking = aiReferrerDomains.some(
+    (domain) => allScriptContent.includes(domain) || allSrcs.includes(domain)
+  );
+  // Also check for GA4 channel grouping patterns that indicate AI traffic setup
+  const hasAiChannelGrouping =
+    /ai[-_\s]?(referr|traffic|channel|source)/i.test(allScriptContent);
 
-  recommendations.push({
-    category: "Measurement",
-    title: "Monitor AI Mentions",
-    description:
-      "Use tools like Profound, Peec.ai, or Otterly to track how your brand is mentioned in AI responses.",
-    why: "Knowing what AI says about your brand helps you correct misinformation and optimize for better citations.",
-  });
+  details.aiReferralTracking = hasAiReferrerTracking || hasAiChannelGrouping;
 
-  recommendations.push({
-    category: "Measurement",
-    title: "Track AI Share of Voice",
-    description:
-      "Measure your brand's visibility relative to competitors in AI responses. AI Share of Voice is now the #1 marketing KPI.",
-    why: "Brands optimizing AI visibility capture 3.4x more mentions than those who wait.",
+  if (hasAiReferrerTracking || hasAiChannelGrouping) {
+    score += 0.5;
+    strengths.push({
+      category: "Measurement",
+      title: "AI Referral Tracking Configured",
+      description: "Your site has tracking for AI platform referral traffic — you can measure visits from ChatGPT, Perplexity, and other AI assistants.",
+    });
+  } else {
+    recommendations.push({
+      category: "Measurement",
+      title: "Track AI Platform Traffic",
+      description:
+        "Set up GA4 custom channel grouping with regex filter for AI referrers: chatgpt.com, perplexity.ai, claude.ai, gemini.google.com, copilot.microsoft.com.",
+      why: "AI traffic surged 527% in 2025. ChatGPT drives 78% of AI visits, but Claude has the highest session value ($4.56/visit).",
+    });
+  }
+
+  // ─── NEW: UTM Discipline (0.25 pts) ───
+  // Check outbound links for consistent UTM parameter usage
+  let linksWithUtm = 0;
+  let totalOutboundLinks = 0;
+  // Determine the page's host from the passed URL, canonical tag, or skip
+  const pageHost = (() => {
+    if (pageUrl) {
+      try { return new URL(pageUrl).hostname; } catch { /* fall through */ }
+    }
+    const canonical = $('link[rel="canonical"]').attr("href") || "";
+    if (canonical) {
+      try { return new URL(canonical).hostname; } catch { /* fall through */ }
+    }
+    return "";
+  })();
+
+  $("a[href]").each((_, el) => {
+    const href = $(el).attr("href") || "";
+    if (href.startsWith("http") && pageHost) {
+      try {
+        const linkHost = new URL(href).hostname;
+        if (linkHost !== pageHost) {
+          totalOutboundLinks++;
+          if (/utm_source|utm_medium|utm_campaign/i.test(href)) {
+            linksWithUtm++;
+          }
+        }
+      } catch {
+        // Invalid URL, skip
+      }
+    }
   });
+  // Also check for UTM builder scripts or consistent patterns in scripts
+  const hasUtmInScripts = /utm_source|utm_medium|utm_campaign/i.test(allScriptContent);
+
+  details.utmDiscipline = totalOutboundLinks > 0 ? Math.round((linksWithUtm / totalOutboundLinks) * 100) : null;
+
+  if (linksWithUtm >= 2 || hasUtmInScripts) {
+    score += 0.25;
+    strengths.push({
+      category: "Measurement",
+      title: "UTM Tracking in Use",
+      description: "UTM parameters detected on outbound links — enabling campaign-level traffic attribution.",
+    });
+  } else if (totalOutboundLinks > 0) {
+    recommendations.push({
+      category: "Measurement",
+      title: "Implement UTM Tracking",
+      description:
+        "Add consistent UTM parameters (utm_source, utm_medium, utm_campaign) to outbound links for campaign attribution.",
+      why: "UTM discipline lets you attribute conversions back to specific campaigns and track ROI across channels.",
+    });
+  }
+
+  // ─── NEW: Search Console Verification (0.25 pts) ───
+  const hasGscMeta = $('meta[name="google-site-verification"]').length > 0;
+  const hasBingMeta = $('meta[name="msvalidate.01"]').length > 0;
+  const hasYandexMeta = $('meta[name="yandex-verification"]').length > 0;
+
+  details.searchConsoleVerified = hasGscMeta;
+
+  if (hasGscMeta) {
+    score += 0.25;
+    const verified = ["Google Search Console"];
+    if (hasBingMeta) verified.push("Bing Webmaster");
+    if (hasYandexMeta) verified.push("Yandex");
+    strengths.push({
+      category: "Measurement",
+      title: "Search Console Verified",
+      description: `${verified.join(", ")} verification detected — providing search performance data and indexing insights.`,
+    });
+  } else {
+    recommendations.push({
+      category: "Measurement",
+      title: "Verify with Google Search Console",
+      description:
+        "Add Google Search Console verification and connect your site to monitor search performance, indexing, and AI-related queries.",
+      why: "Search Console data reveals which queries drive traffic and helps identify AI visibility opportunities.",
+    });
+  }
+
+  // ─── Conditional AI Monitoring Recommendations ───
+  // Only recommend if no AI referral tracking is already in place
+  if (!hasAiReferrerTracking && !hasAiChannelGrouping) {
+    recommendations.push({
+      category: "Measurement",
+      title: "Monitor AI Mentions",
+      description:
+        "Use tools like Profound, Peec.ai, or Otterly to track how your brand is mentioned in AI responses.",
+      why: "Knowing what AI says about your brand helps you correct misinformation and optimize for better citations.",
+    });
+
+    recommendations.push({
+      category: "Measurement",
+      title: "Track AI Share of Voice",
+      description:
+        "Measure your brand's visibility relative to competitors in AI responses. AI Share of Voice is now the #1 marketing KPI.",
+      why: "Brands optimizing AI visibility capture 3.4x more mentions than those who wait.",
+    });
+  }
 
   return {
     score: Math.min(score, 5),

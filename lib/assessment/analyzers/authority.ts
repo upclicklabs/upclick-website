@@ -314,8 +314,17 @@ export function analyzeAuthority(
   }
 
   // ─── NEW: Schema Person Depth (0.25 pts) ───
-  const personSchema = findSchemaByType(allJsonLd, "Person") || (hasAuthorSchema ? allJsonLd.find((b) => b.author) : null);
-  const authorObj = personSchema || (allJsonLd.find((b) => typeof b.author === "object")?.author as JsonLdBlock | undefined);
+  // First try to find a dedicated Person schema type
+  let authorObj: JsonLdBlock | undefined = findSchemaByType(allJsonLd, "Person");
+  // Fallback: extract nested author object from Article/BlogPosting schemas
+  if (!authorObj) {
+    for (const block of allJsonLd) {
+      if (typeof block.author === "object" && block.author !== null && !Array.isArray(block.author)) {
+        authorObj = block.author as JsonLdBlock;
+        break;
+      }
+    }
+  }
 
   if (authorObj) {
     const hasJobTitle = !!authorObj.jobTitle;
@@ -378,13 +387,15 @@ export function analyzeAuthority(
     });
   }
 
-  // ─── Wikipedia (always recommend) ───
-  recommendations.push({
-    category: "Authority",
-    title: "Build Wikipedia Presence",
-    description: "Work toward getting cited on relevant Wikipedia articles through sustained media coverage and notability.",
-    why: "Wikipedia is cited disproportionately by all major LLMs. Being mentioned there significantly boosts AI visibility.",
-  });
+  // ─── Wikipedia (recommend if no Knowledge Graph presence) ───
+  if (!knowledgeGraphData?.found) {
+    recommendations.push({
+      category: "Authority",
+      title: "Build Wikipedia Presence",
+      description: "Work toward getting cited on relevant Wikipedia articles through sustained media coverage and notability.",
+      why: "Wikipedia is cited disproportionately by all major LLMs. Being mentioned there significantly boosts AI visibility.",
+    });
+  }
 
   return {
     score: Math.min(score, 5),
