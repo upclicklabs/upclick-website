@@ -172,7 +172,41 @@ function ReportContent() {
 
   useEffect(() => {
     async function loadReport() {
-      // Primary: fetch from Vercel Blob via API
+      // Helper to finalize report data with runtime-generated summaries
+      function finalizeReport(reportData: AEOReport) {
+        if (!reportData.pillarSummaries) {
+          reportData.pillarSummaries = generatePillarSummaries(reportData);
+        }
+        if (!reportData.topPriorities) {
+          reportData.topPriorities = generateTopPriorities(reportData);
+        }
+        setReport(reportData);
+        setLoading(false);
+      }
+
+      // === PRIMARY: Direct blob URL fetch (new architecture, most reliable) ===
+      // The blob URL is embedded in the query param ?b=<encoded blob URL>
+      const blobUrlParam = searchParams.get("b");
+      if (blobUrlParam) {
+        try {
+          const blobUrl = decodeURIComponent(blobUrlParam);
+          console.log("Fetching report directly from blob:", blobUrl);
+          const response = await fetch(blobUrl);
+          if (response.ok) {
+            const reportData = await response.json();
+            if (reportData && reportData.url && reportData.scores) {
+              finalizeReport(reportData);
+              return;
+            }
+          }
+          console.error("Direct blob fetch failed:", response.status, response.statusText);
+        } catch (err) {
+          console.error("Failed to fetch from blob URL:", err);
+        }
+        // Don't give up yet — fall through to try other methods
+      }
+
+      // === FALLBACK 1: Short ID via /api/reports (backward compat with old links) ===
       const shortId = searchParams.get("id");
       if (shortId) {
         try {
@@ -180,49 +214,33 @@ function ReportContent() {
           const data = await response.json();
 
           if (response.ok && data.success && data.report) {
-            const reportData = data.report;
-            if (!reportData.pillarSummaries) {
-              reportData.pillarSummaries = generatePillarSummaries(reportData);
-            }
-            if (!reportData.topPriorities) {
-              reportData.topPriorities = generateTopPriorities(reportData);
-            }
-            setReport(reportData);
-            setLoading(false);
+            finalizeReport(data.report);
             return;
           }
-
-          // API returned non-ok or no report — log details for debugging
-          console.error("Report fetch failed for id:", shortId, "status:", response.status, "body:", JSON.stringify(data));
+          console.error("Report API fetch failed for id:", shortId, "status:", response.status, "body:", JSON.stringify(data));
         } catch (err) {
-          console.error("Failed to fetch report:", err);
+          console.error("Failed to fetch report via API:", err);
         }
-        setError(true);
-        setLoading(false);
-        return;
+        // Don't give up yet — fall through
       }
 
-      // Legacy fallback: decode compressed data from URL
+      // === FALLBACK 2: Compressed URL data (legacy links) ===
       const encoded = searchParams.get("d");
       if (encoded) {
         console.log("Decoding report from URL, encoded length:", encoded.length);
         const decoded = decodeReport(encoded);
         if (decoded) {
-          if (!decoded.pillarSummaries) {
-            decoded.pillarSummaries = generatePillarSummaries(decoded);
-          }
-          if (!decoded.topPriorities) {
-            decoded.topPriorities = generateTopPriorities(decoded);
-          }
-          setReport(decoded);
-        } else {
-          console.error("Failed to decode report data. Encoded param length:", encoded.length);
-          setError(true);
+          finalizeReport(decoded);
+          return;
         }
-      } else {
-        console.error("No report data found in URL params. Available params:", Array.from(searchParams.keys()));
-        setError(true);
+        console.error("Failed to decode report data. Encoded param length:", encoded.length);
       }
+
+      // All methods exhausted
+      if (!blobUrlParam && !shortId && !encoded) {
+        console.error("No report data found in URL params. Available params:", Array.from(searchParams.keys()));
+      }
+      setError(true);
       setLoading(false);
     }
 

@@ -127,6 +127,7 @@ export async function POST(request: NextRequest) {
     const slug = hostname.replace(/\./g, "-").replace(/[^a-z0-9-]/gi, "");
     const shortId = crypto.randomBytes(4).toString("hex");
 
+    let blobUrl: string;
     try {
       const blob = await put(
         `reports/${shortId}.json`,
@@ -137,7 +138,8 @@ export async function POST(request: NextRequest) {
           addRandomSuffix: false,
         }
       );
-      console.log("Report stored in blob:", shortId, "url:", blob.url);
+      blobUrl = blob.url;
+      console.log("Report stored in blob:", shortId, "url:", blobUrl);
     } catch (blobError) {
       console.error("Blob storage failed:", blobError);
       return NextResponse.json(
@@ -146,7 +148,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const reportUrl = `${baseUrl}/report/${slug}?id=${shortId}`;
+    // Encode the blob URL into the report page URL so the client can fetch directly
+    // No middleman API needed — the blob URL is public and permanent
+    const encodedBlobUrl = encodeURIComponent(blobUrl);
+    const reportUrl = `${baseUrl}/report/${slug}?b=${encodedBlobUrl}`;
     console.log("Report URL generated:", reportUrl);
 
     // Send lead to Google Sheets (fire and forget - don't block on this)
