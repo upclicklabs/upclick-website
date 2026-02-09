@@ -177,23 +177,23 @@ function ReportContent() {
       if (shortId) {
         try {
           const response = await fetch(`/api/reports?id=${shortId}`);
-          if (response.ok) {
-            const data = await response.json();
-            if (data.success && data.report) {
-              const reportData = data.report;
-              if (!reportData.pillarSummaries) {
-                reportData.pillarSummaries = generatePillarSummaries(reportData);
-              }
-              if (!reportData.topPriorities) {
-                reportData.topPriorities = generateTopPriorities(reportData);
-              }
-              setReport(reportData);
-              setLoading(false);
-              return;
+          const data = await response.json();
+
+          if (response.ok && data.success && data.report) {
+            const reportData = data.report;
+            if (!reportData.pillarSummaries) {
+              reportData.pillarSummaries = generatePillarSummaries(reportData);
             }
+            if (!reportData.topPriorities) {
+              reportData.topPriorities = generateTopPriorities(reportData);
+            }
+            setReport(reportData);
+            setLoading(false);
+            return;
           }
-          // API returned non-ok or no report
-          console.error("Report fetch failed for id:", shortId);
+
+          // API returned non-ok or no report — log details for debugging
+          console.error("Report fetch failed for id:", shortId, "status:", response.status, "body:", JSON.stringify(data));
         } catch (err) {
           console.error("Failed to fetch report:", err);
         }

@@ -128,12 +128,16 @@ export async function POST(request: NextRequest) {
     const shortId = crypto.randomBytes(4).toString("hex");
 
     try {
-      await put(
+      const blob = await put(
         `reports/${shortId}.json`,
         JSON.stringify(report),
-        { contentType: "application/json", access: "public" }
+        {
+          contentType: "application/json",
+          access: "public",
+          addRandomSuffix: false,
+        }
       );
-      console.log("Report stored in blob:", shortId);
+      console.log("Report stored in blob:", shortId, "url:", blob.url);
     } catch (blobError) {
       console.error("Blob storage failed:", blobError);
       return NextResponse.json(
