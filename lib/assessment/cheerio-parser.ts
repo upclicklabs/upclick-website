@@ -1,6 +1,4 @@
 import * as cheerio from "cheerio";
-import { Readability } from "@mozilla/readability";
-import { JSDOM } from "jsdom";
 
 export interface ParsedPage {
   $: cheerio.CheerioAPI;
@@ -25,27 +23,17 @@ export function parsePage(html: string, url: string): ParsedPage {
   return { $, mainContent, mainContentHtml, jsonLdBlocks };
 }
 
-// Extract main readable content using Mozilla Readability (strips nav, footer, ads)
-function extractMainContent(html: string, url: string): string {
-  try {
-    const dom = new JSDOM(html, { url });
-    const reader = new Readability(dom.window.document);
-    const article = reader.parse();
-    if (article && article.textContent) {
-      // Clean up whitespace
-      return article.textContent.replace(/\s+/g, " ").trim();
-    }
-  } catch (error) {
-    console.log("Readability extraction failed, falling back to Cheerio:", error);
-  }
-
-  // Fallback: use Cheerio to extract text from likely content areas
+// Extract main readable content using Cheerio (strips nav, footer, ads, scripts)
+function extractMainContent(html: string, _url: string): string {
   const $ = cheerio.load(html);
-  $("script, style, nav, header, footer, aside, [role='navigation'], [role='banner']").remove();
+  // Remove non-content elements
+  $("script, style, nav, header, footer, aside, noscript, svg, iframe, form, [role='navigation'], [role='banner'], [role='complementary'], [aria-hidden='true']").remove();
+  // Try semantic content areas first
   const content = $("main, article, [role='main'], .content, #content").text();
   if (content.trim().length > 100) {
     return content.replace(/\s+/g, " ").trim();
   }
+  // Fall back to body
   return $("body").text().replace(/\s+/g, " ").trim();
 }
 

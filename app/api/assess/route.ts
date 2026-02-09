@@ -2,29 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import { put } from "@vercel/blob";
 import crypto from "crypto";
+import { analyzeWebsite } from "@/lib/assessment";
 import { generateSimpleReportEmail, generatePlainTextEmail } from "@/lib/email-templates-simple";
 
 export const maxDuration = 60; // Allow up to 60s for parallel API calls (PSI, etc.)
-
-// GET handler for health check / diagnostics
-export async function GET() {
-  try {
-    // Dynamic import to catch module-level crashes
-    const mod = await import("@/lib/assessment");
-    return NextResponse.json({
-      status: "ok",
-      hasAnalyzeWebsite: typeof mod.analyzeWebsite === "function",
-    });
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : String(error);
-    const stack = error instanceof Error ? error.stack?.split("\n").slice(0, 5).join("\n") : "";
-    return NextResponse.json({
-      status: "error",
-      message,
-      stack,
-    }, { status: 500 });
-  }
-}
 
 // Lazy initialize Resend to avoid build-time errors
 function getResendClient() {
@@ -123,7 +104,6 @@ export async function POST(request: NextRequest) {
     // Analyze the website (dynamic import to isolate module crashes)
     let report;
     try {
-      const { analyzeWebsite } = await import("@/lib/assessment");
       report = await analyzeWebsite(url);
       console.log("Analysis complete:", {
         url,
