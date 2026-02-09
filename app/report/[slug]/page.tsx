@@ -164,25 +164,6 @@ function CopyButton() {
   );
 }
 
-function ReportLoading() {
-  return (
-    <div className="min-h-screen bg-black text-white flex items-center justify-center">
-      <div className="text-center">
-        <div className="w-12 h-12 border-2 border-[#d4a000] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-        <p className="text-neutral-400">Loading report...</p>
-      </div>
-    </div>
-  );
-}
-
-export default function ReportPage() {
-  return (
-    <Suspense fallback={<ReportLoading />}>
-      <ReportContent />
-    </Suspense>
-  );
-}
-
 function ReportContent() {
   const searchParams = useSearchParams();
   const [report, setReport] = useState<AEOReport | null>(null);
@@ -191,7 +172,7 @@ function ReportContent() {
 
   useEffect(() => {
     async function loadReport() {
-      // Check for short ID first (new URL format)
+      // Primary: fetch from Vercel Blob via API
       const shortId = searchParams.get("id");
       if (shortId) {
         try {
@@ -200,7 +181,6 @@ function ReportContent() {
             const data = await response.json();
             if (data.success && data.report) {
               const reportData = data.report;
-              // Generate pillarSummaries and topPriorities if not present
               if (!reportData.pillarSummaries) {
                 reportData.pillarSummaries = generatePillarSummaries(reportData);
               }
@@ -212,6 +192,8 @@ function ReportContent() {
               return;
             }
           }
+          // API returned non-ok or no report
+          console.error("Report fetch failed for id:", shortId);
         } catch (err) {
           console.error("Failed to fetch report:", err);
         }
@@ -220,13 +202,12 @@ function ReportContent() {
         return;
       }
 
-      // Fall back to encoded data in URL
+      // Legacy fallback: decode compressed data from URL
       const encoded = searchParams.get("d");
       if (encoded) {
         console.log("Decoding report from URL, encoded length:", encoded.length);
         const decoded = decodeReport(encoded);
         if (decoded) {
-          // Generate pillarSummaries and topPriorities if not present
           if (!decoded.pillarSummaries) {
             decoded.pillarSummaries = generatePillarSummaries(decoded);
           }
@@ -1037,5 +1018,22 @@ function ReportContent() {
         </div>
       </footer>
     </div>
+  );
+}
+
+export default function ReportPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-black text-white flex items-center justify-center">
+          <div className="text-center">
+            <div className="w-12 h-12 border-2 border-[#d4a000] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+            <p className="text-neutral-400">Loading report...</p>
+          </div>
+        </div>
+      }
+    >
+      <ReportContent />
+    </Suspense>
   );
 }

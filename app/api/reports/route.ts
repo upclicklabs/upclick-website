@@ -1,26 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
+import { put, list } from "@vercel/blob";
 import { AEOReport } from "@/lib/email-templates";
 import crypto from "crypto";
-
-// In-memory storage (for development - use Redis/DB in production)
-const reportStore = new Map<string, { report: AEOReport; expires: number }>();
 
 // Generate a short unique ID
 function generateShortId(): string {
   return crypto.randomBytes(4).toString("hex"); // 8 character hex string
 }
 
-// Clean up expired reports
-function cleanupExpired() {
-  const now = Date.now();
-  for (const [id, data] of reportStore.entries()) {
-    if (data.expires < now) {
-      reportStore.delete(id);
-    }
-  }
-}
-
-// POST - Store a new report
+// POST - Store a new report in Vercel Blob
 export async function POST(request: NextRequest) {
   try {
     const report: AEOReport = await request.json();
@@ -32,22 +20,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Clean up old reports
-    cleanupExpired();
-
-    // Generate short ID
     const shortId = generateShortId();
-
-    // Store report (expires in 30 days)
-    const expiresIn = 30 * 24 * 60 * 60 * 1000; // 30 days
-    reportStore.set(shortId, {
-      report,
-      expires: Date.now() + expiresIn,
-    });
 
     // Generate SEO-friendly slug from URL
     const hostname = new URL(report.url).hostname.replace("www.", "");
     const slug = hostname.replace(/\./g, "-").replace(/[^a-z0-9-]/gi, "");
+
+    // Store in Vercel Blob as JSON
+    const blob = await put(
+      `reports/${shortId}.json`,
+      JSON.stringify(report),
+      {
+        contentType: "application/json",
+        access: "public",
+      }
+    );
+
+    console.log("Report stored in blob:", { shortId, blobUrl: blob.url });
 
     return NextResponse.json({
       success: true,
@@ -64,7 +53,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// GET - Retrieve a report by short ID
+// GET - Retrieve a report by short ID from Vercel Blob
 export async function GET(request: NextRequest) {
   try {
     const shortId = request.nextUrl.searchParams.get("id");
@@ -76,19 +65,30 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const data = reportStore.get(shortId);
+    // List blobs with the matching prefix
+    const { blobs } = await list({ prefix: `reports/${shortId}.json` });
 
-    if (!data || data.expires < Date.now()) {
-      if (data) reportStore.delete(shortId);
+    if (blobs.length === 0) {
       return NextResponse.json(
-        { error: "Report not found or expired" },
+        { error: "Report not found" },
         { status: 404 }
       );
     }
 
+    // Fetch the blob content
+    const response = await fetch(blobs[0].url);
+    if (!response.ok) {
+      return NextResponse.json(
+        { error: "Failed to fetch report" },
+        { status: 500 }
+      );
+    }
+
+    const report = await response.json();
+
     return NextResponse.json({
       success: true,
-      report: data.report,
+      report,
     });
   } catch (error) {
     console.error("Failed to retrieve report:", error);

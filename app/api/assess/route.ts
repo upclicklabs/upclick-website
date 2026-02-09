@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
+import { put } from "@vercel/blob";
+import crypto from "crypto";
 import { analyzeWebsite } from "@/lib/assessment";
 import { generateSimpleReportEmail, generatePlainTextEmail } from "@/lib/email-templates-simple";
 
@@ -119,26 +121,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate report URL using compressed URL encoding
-    // Note: In-memory store doesn't persist across Vercel serverless invocations,
-    // so we always use the compressed URL approach which embeds data in the URL itself.
+    // Store report in Vercel Blob for persistent, reliable access
     const baseUrl = getBaseUrl(request);
     const hostname = new URL(report.url).hostname.replace("www.", "");
+    const slug = hostname.replace(/\./g, "-").replace(/[^a-z0-9-]/gi, "");
+    const shortId = crypto.randomBytes(4).toString("hex");
 
-    const { generateReportUrl } = await import("@/lib/report-url");
-    // Strip detail fields to keep URL shorter (core report data is sufficient for display)
-    const reportForUrl = { ...report };
-    delete (reportForUrl as Record<string, unknown>).technicalDetails;
-    delete (reportForUrl as Record<string, unknown>).contentDetails;
-    delete (reportForUrl as Record<string, unknown>).authorityDetails;
-    delete (reportForUrl as Record<string, unknown>).measurementDetails;
-    const reportUrl = generateReportUrl(reportForUrl, baseUrl);
-    console.log("Report URL length:", reportUrl.length, "chars");
-    console.log("Report URL preview:", reportUrl.substring(0, 100) + "...");
-
-    if (reportUrl.length > 8000) {
-      console.warn("WARNING: Report URL exceeds 8000 chars — may be truncated by browsers/email clients");
+    try {
+      await put(
+        `reports/${shortId}.json`,
+        JSON.stringify(report),
+        { contentType: "application/json", access: "public" }
+      );
+      console.log("Report stored in blob:", shortId);
+    } catch (blobError) {
+      console.error("Blob storage failed:", blobError);
+      return NextResponse.json(
+        { error: "Failed to save report. Please try again." },
+        { status: 500 }
+      );
     }
+
+    const reportUrl = `${baseUrl}/report/${slug}?id=${shortId}`;
+    console.log("Report URL generated:", reportUrl);
 
     // Send lead to Google Sheets (fire and forget - don't block on this)
     sendToGoogleSheets({
